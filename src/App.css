@@ -19,8 +19,14 @@
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  width: 900px; /* Adjust as needed */
-  max-width: 90%;
+  width: 1000px; /* Increased width */
+  max-width: 95%;
+}
+
+.login-form-section {
+  display: flex;
+  width: 100%;
+  padding: 40px;
 }
 
 .logo-section {
@@ -38,12 +44,12 @@
   object-fit: contain;
 }
 
-.login-form-section {
+.form-content {
   flex: 1;
-  padding: 40px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  padding-left: 40px;
 }
 
 .university-bike-rental-header {

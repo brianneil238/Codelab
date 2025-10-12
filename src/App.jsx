@@ -119,18 +119,19 @@ function App() {
     <ProgressProvider>
       <div className="login-page">
         <div className="login-container">
-          <div className="logo-section">
-            <img src={logo} alt="Batangas State University Logo" className="bsu-logo" />
-          </div>
           <div className="login-form-section">
-            <div className="university-bike-rental-header">
-              <img src={bikeRentalLogo} alt="University Bike Rental Logo" className="bike-rental-logo" />
-              <div className="university-bike-rental-text">
-                <h2>CodeLab</h2>
-                <p>Think. Code. Create</p>
-              </div>
+            <div className="logo-section">
+              <img src={logo} alt="Padre Garcia Logo" className="bsu-logo" />
             </div>
-            <h3>Please {isLogin ? 'Log In' : 'Sign Up'}</h3>
+            <div className="form-content">
+              <div className="university-bike-rental-header">
+                <img src={bikeRentalLogo} alt="University Bike Rental Logo" className="bike-rental-logo" />
+                <div className="university-bike-rental-text">
+                  <h2>CodeLab</h2>
+                  <p>Think. Code. Create</p>
+                </div>
+              </div>
+              <h3>Please {isLogin ? 'Log In' : 'Sign Up'}</h3>
           <form className="login-form" onSubmit={handleSubmit}>
             {!isLogin && (
               <>
@@ -285,9 +286,10 @@ function App() {
               </a>
             </p>
           </form>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
     </ProgressProvider>
   );
 }
