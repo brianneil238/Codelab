@@ -1,13 +1,26 @@
 {
-  "name": "codelab",
-  "version": "1.0.0",
-  "description": "A Programming Website Learning Tutorial and Lectures",
+  "name": "client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "build": "cd client && npm install && npm run build",
-    "dev": "cd client && npm run dev",
-    "start": "cd client && npm run preview"
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
   },
-  "keywords": ["react", "learning", "programming", "tutorial"],
-  "author": "brianneil238",
-  "license": "MIT"
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "vite": "^4.4.5"
+  }
 }
