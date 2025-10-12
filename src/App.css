@@ -180,3 +180,115 @@ h3 {
 .form-single {
   width: 100%;
 }
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .login-container {
+    width: 95%;
+    max-width: 95%;
+    margin: 20px;
+  }
+  
+  .login-form-section {
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .logo-section {
+    padding: 20px 0;
+    margin-bottom: 20px;
+  }
+  
+  .bsu-logo {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .form-content {
+    padding-left: 0;
+    padding-top: 20px;
+  }
+  
+  .university-bike-rental-header {
+    justify-content: center;
+    margin-bottom: 15px;
+  }
+  
+  .bike-rental-logo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .university-bike-rental-text h2 {
+    font-size: 1.3em;
+  }
+  
+  .university-bike-rental-text p {
+    font-size: 0.8em;
+  }
+  
+  h3 {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .form-row .input-group {
+    margin-bottom: 10px;
+  }
+  
+  .input-group {
+    padding: 10px;
+  }
+  
+  .input-group input,
+  .input-group select {
+    font-size: 1em;
+  }
+  
+  .sign-in-button {
+    padding: 15px;
+    font-size: 1.1em;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 10px;
+  }
+  
+  .login-container {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+  }
+  
+  .login-form-section {
+    padding: 15px;
+  }
+  
+  .bsu-logo {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .university-bike-rental-text h2 {
+    font-size: 1.2em;
+  }
+  
+  h3 {
+    font-size: 1.3em;
+  }
+  
+  .input-group {
+    padding: 12px;
+  }
+  
+  .sign-in-button {
+    padding: 16px;
+  }
+}
