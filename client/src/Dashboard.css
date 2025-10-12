@@ -1,0 +1,311 @@
+/* Dashboard Styles - Green and White Theme */
+.dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f9f0 0%, #e8f5e8 100%);
+}
+
+.dashboard-header {
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 0; /* Remove all padding */
+  min-height: 60px; /* Smaller header - good balance */
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 1rem 0; /* Reduced vertical padding for smaller header */
+  position: relative; /* Enable absolute positioning for children */
+  min-height: 60px; /* Match header height */
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: absolute; /* Absolute positioning */
+  left: 1.5rem; /* Add margin from left edge */
+  top: 50%; /* Center vertically */
+  transform: translateY(-50%); /* Perfect vertical centering */
+  margin: 0; /* Remove all margins */
+  padding: 0; /* Remove all padding */
+}
+
+.logo-icon {
+  font-size: 1.5rem;
+  background: #4CAF50;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text {
+  margin: 0;
+  color: #4CAF50;
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: Arial, sans-serif;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  position: absolute; /* Absolute positioning */
+  right: 1.5rem; /* Add margin from right edge */
+  top: 50%; /* Center vertically */
+  transform: translateY(-50%); /* Perfect vertical centering */
+  margin: 0; /* Remove all margins */
+  padding: 0; /* Remove all padding */
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-avatar {
+  background: #4CAF50;
+  color: white;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.user-name {
+  color: #333;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.logout-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.3s ease;
+}
+
+.logout-btn:hover {
+  background: #43A047;
+}
+
+.dashboard-main {
+  padding: 2rem 0;
+}
+
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.welcome-section {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.welcome-section h2 {
+  color: #2e7d32;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.welcome-section p {
+  color: #7f8c8d;
+  font-size: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.feature-card {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+  color: #2e7d32;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card p {
+  color: #7f8c8d;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.feature-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+  width: 100%;
+}
+
+.feature-btn:hover {
+  background: #43A047;
+}
+
+.quick-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h4 {
+  color: #7f8c8d;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat-number {
+  color: #4CAF50;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .user-section {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .welcome-section h2 {
+    font-size: 2rem;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-container {
+    padding: 0 1rem;
+  }
+}
+
+.progress-overview {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.progress-overview h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.overall-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.progress-percentage {
+  font-size: 1rem;
+  color: #4CAF50;
+  font-weight: 600;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.course-progress {
+  margin: 1rem 0;
+  padding: 0.8rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.course-progress .progress-bar {
+  height: 6px;
+}
+
+.course-progress .progress-fill {
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+}

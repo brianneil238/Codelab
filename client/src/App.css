@@ -1,0 +1,175 @@
+.App {
+  text-align: center;
+}
+
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0f2f5; /* Light grey background */
+  background-image: url('./assets/background.jpg'); /* Assuming a background image */
+  background-size: cover;
+  background-position: center;
+}
+
+.login-container {
+  display: flex;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  width: 900px; /* Adjust as needed */
+  max-width: 90%;
+}
+
+.logo-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #fff; /* Changed to white to match the logo's background */
+  padding: 20px;
+}
+
+.bsu-logo {
+  max-width: 95%; /* Increased size */
+  height: auto;
+}
+
+.login-form-section {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.university-bike-rental-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.bike-rental-logo {
+  width: 50px;
+  height: 50px;
+  margin-right: 15px;
+}
+
+.university-bike-rental-text h2 {
+  margin: 0;
+  font-size: 1.5em;
+  color: #4CAF50; /* Green color for the theme */
+}
+
+.university-bike-rental-text p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #7f8c8d;
+}
+
+h3 {
+  margin-bottom: 25px;
+  color: #333;
+  font-size: 1.8em;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 8px;
+}
+
+.input-group i {
+  color: #7f8c8d;
+  margin-right: 10px;
+}
+
+.input-group input,
+.input-group select {
+  border: none;
+  outline: none;
+  flex-grow: 1;
+  padding: 3px 0;
+  font-size: 0.9em;
+  background: transparent;
+}
+
+.input-group select {
+  color: #333;
+}
+
+.password-case-sensitive {
+  font-size: 0.85em;
+  color: #e74c3c; /* Red color for warning */
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.form-message {
+  font-size: 0.9em;
+  color: #27ae60; /* Green for success, could be red for error */
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.sign-in-button {
+  background-color: #4CAF50; /* Green color for the theme */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 12px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.sign-in-button:hover {
+  background-color: #43A047;
+}
+
+.forgot-password, .signup-link {
+  color: #4CAF50; /* Green color for links */
+  text-decoration: none;
+  font-size: 0.95em;
+}
+
+.forgot-password:hover, .signup-link:hover {
+  text-decoration: underline;
+}
+
+.signup-text {
+  margin-top: 20px;
+  color: #555;
+}
+
+.signup-text .signup-link {
+  font-weight: bold;
+}
+
+/* Two-column layout for signup form */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row .input-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.form-single {
+  width: 100%;
+}

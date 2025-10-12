@@ -1,0 +1,227 @@
+/* Course Lecture Styles - Green and White Theme */
+.course-lecture {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f9f0 0%, #e8f5e8 100%);
+}
+
+.course-header {
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 1rem 2rem 1rem 0;
+}
+
+.course-header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.back-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.back-btn:hover {
+  background: #43A047;
+}
+
+.course-info h1 {
+  color: #2e7d32;
+  font-size: 2rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.course-info p {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.course-main {
+  padding: 2rem 0;
+}
+
+.course-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.course-progress {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.course-progress h3 {
+  color: #2e7d32;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  background: #e0e0e0;
+  border-radius: 10px;
+  height: 20px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  background: #4CAF50;
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.lectures-section {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.lectures-section h3 {
+  color: #2e7d32;
+  margin-bottom: 1.5rem;
+}
+
+.lectures-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lecture-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  transition: box-shadow 0.3s ease;
+}
+
+.lecture-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.lecture-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lecture-number {
+  background: #4CAF50;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.lecture-details h4 {
+  color: #333;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.lecture-duration {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.start-lecture-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.start-lecture-btn:hover {
+  background: #43A047;
+}
+
+.course-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.course-btn {
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.course-btn.primary {
+  background: #4CAF50;
+  color: white;
+}
+
+.course-btn.primary:hover {
+  background: #43A047;
+  transform: translateY(-2px);
+}
+
+.course-btn.secondary {
+  background: white;
+  color: #4CAF50;
+  border: 2px solid #4CAF50;
+}
+
+.course-btn.secondary:hover {
+  background: #4CAF50;
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .course-header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .lecture-item {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .course-actions {
+    flex-direction: column;
+  }
+  
+  .course-container {
+    padding: 0 1rem;
+  }
+}
