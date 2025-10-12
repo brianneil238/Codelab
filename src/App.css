@@ -18,20 +18,18 @@
   background-color: #fff;
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  overflow: visible; /* Changed to visible to allow logo overlap */
+  overflow: hidden;
   width: 900px; /* Adjust as needed */
   max-width: 90%;
-  position: relative;
 }
 
 .logo-section {
-  position: absolute;
-  left: -80px; /* Position logo to the left, overlapping the card */
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  background-color: transparent;
-  padding: 0;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #fff;
+  padding: 20px;
 }
 
 .bsu-logo {
@@ -46,7 +44,6 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-left: 20px; /* Add some margin to account for the overlapping logo */
 }
 
 .university-bike-rental-header {
