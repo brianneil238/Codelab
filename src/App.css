@@ -4,6 +4,7 @@
 
 .login-page {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
@@ -11,6 +12,12 @@
   background-image: url('./assets/background.jpg'); /* Assuming a background image */
   background-size: cover;
   background-position: center;
+}
+
+.codelab-branding {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
 }
 
 .login-container {

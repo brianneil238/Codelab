@@ -118,11 +118,7 @@ function App() {
   return (
     <ProgressProvider>
       <div className="login-page">
-      <div className="login-container">
-        <div className="logo-section">
-          <img src={logo} alt="Batangas State University Logo" className="bsu-logo" />
-        </div>
-        <div className="login-form-section">
+        <div className="codelab-branding">
           <div className="university-bike-rental-header">
             <img src={bikeRentalLogo} alt="University Bike Rental Logo" className="bike-rental-logo" />
             <div className="university-bike-rental-text">
@@ -130,7 +126,13 @@ function App() {
               <p>Think. Code. Create</p>
             </div>
           </div>
-          <h3>Please {isLogin ? 'Log In' : 'Sign Up'}</h3>
+        </div>
+        <div className="login-container">
+          <div className="logo-section">
+            <img src={logo} alt="Batangas State University Logo" className="bsu-logo" />
+          </div>
+          <div className="login-form-section">
+            <h3>Please {isLogin ? 'Log In' : 'Sign Up'}</h3>
           <form className="login-form" onSubmit={handleSubmit}>
             {!isLogin && (
               <>
