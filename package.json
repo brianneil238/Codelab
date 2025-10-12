@@ -1,0 +1,13 @@
+{
+  "name": "codelab",
+  "version": "1.0.0",
+  "description": "A Programming Website Learning Tutorial and Lectures",
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "dev": "cd client && npm run dev",
+    "start": "cd client && npm run preview"
+  },
+  "keywords": ["react", "learning", "programming", "tutorial"],
+  "author": "brianneil238",
+  "license": "MIT"
+}
