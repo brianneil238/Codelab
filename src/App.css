@@ -195,10 +195,8 @@ h3 {
   }
   
   .logo-section {
-    padding: 20px 0;
-    margin-bottom: 20px;
-    /* Ensure logo never overlaps the form */
-    z-index: 0;
+    /* Hide the big logo on mobile to avoid overlap */
+    display: none;
   }
   
   .bsu-logo {
@@ -284,10 +282,9 @@ h3 {
     padding: 15px;
   }
   
-  .bsu-logo {
-    width: 100px;
-    height: 100px;
-  }
+  /* Keep logo hidden on small screens */
+  .logo-section { display: none; }
+  .bsu-logo { width: 0; height: 0; }
   
   /* Keep form stacked and ensure spacing for smallest screens */
   .auth-row {
