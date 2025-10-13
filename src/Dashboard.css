@@ -226,6 +226,14 @@
     flex-direction: column;
     gap: 0.5rem;
   }
+  /* Show only the Logout button on mobile */
+  .user-profile {
+    gap: 0.5rem;
+  }
+  .user-name,
+  .user-avatar {
+    display: none;
+  }
   
   .welcome-section h2 {
     font-size: 2rem;
