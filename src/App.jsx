@@ -26,14 +26,22 @@ function App() {
   });
   const [message, setMessage] = useState('');
 
+  const API_URL = import.meta.env.VITE_API_URL || '';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
 
-    const endpoint = isLogin ? 'http://localhost:5000/login' : 'http://localhost:5000/signup';
+    // Prefer same-origin requests (works with Vite proxy). If VITE_API_URL is
+    // provided and not pointing to localhost, use it; otherwise use relative path.
+    const useAbsolute = API_URL && !API_URL.includes('localhost');
+    const endpoint = useAbsolute 
+      ? `${API_URL}${isLogin ? '/login' : '/signup'}` 
+      : `${isLogin ? '/login' : '/signup'}`;
     const method = 'POST';
 
     try {
+      console.log('Auth request to:', endpoint);
       const response = await fetch(endpoint, {
         method,
         headers: {
@@ -56,8 +64,8 @@ function App() {
         setMessage(data.message || 'An error occurred');
       }
     } catch (error) {
-      setMessage('Network error or server is down.');
-      console.error('Error:', error);
+      setMessage(`Network error: ${error?.message || 'request failed'}`);
+      console.error('Network error calling', endpoint, error);
     }
   };
 
