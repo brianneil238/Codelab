@@ -150,6 +150,11 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Health check route for uptime monitoring and Render health checks
+app.get('/health', (req, res) => {
+  res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
+});
+
 // Delete user route (for testing purposes)
 app.delete('/delete-user/:email', async (req, res) => {
   try {
