@@ -197,6 +197,8 @@ h3 {
   .logo-section {
     padding: 20px 0;
     margin-bottom: 20px;
+    /* Ensure logo never overlaps the form */
+    z-index: 0;
   }
   
   .bsu-logo {
@@ -207,6 +209,8 @@ h3 {
   .form-content {
     padding-left: 0;
     padding-top: 20px;
+    position: relative;
+    z-index: 1; /* keep form above any overlapping elements */
   }
   
   .university-bike-rental-header {
@@ -235,6 +239,15 @@ h3 {
   .form-row {
     flex-direction: column;
     gap: 0;
+  }
+
+  /* Stack email above password on small screens */
+  .auth-row {
+    display: flex;
+    flex-direction: column;
+  }
+  .auth-row .input-group + .input-group {
+    margin-top: 10px;
   }
   
   .form-row .input-group {
@@ -276,6 +289,14 @@ h3 {
     height: 100px;
   }
   
+  /* Keep form stacked and ensure spacing for smallest screens */
+  .auth-row {
+    flex-direction: column;
+  }
+  .auth-row .input-group + .input-group {
+    margin-top: 10px;
+  }
+
   .university-bike-rental-text h2 {
     font-size: 1.2em;
   }

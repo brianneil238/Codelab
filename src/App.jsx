@@ -248,7 +248,7 @@ function App() {
                 </div>
               </>
             )}
-            <div className="form-row">
+            <div className="form-row auth-row">
               <div className="input-group">
                 <i className="fas fa-envelope"></i>
                 <input 
