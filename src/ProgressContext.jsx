@@ -26,7 +26,7 @@ export const ProgressProvider = ({ children, user }) => {
   // API base URL
   const API_URL = import.meta.env.VITE_API_URL || '';
   const useAbsolute = API_URL && !API_URL.includes('localhost');
-  const baseUrl = useAbsolute ? API_URL : '';
+  const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
 
   // Load progress and streak from backend when user changes
   useEffect(() => {
@@ -58,6 +58,7 @@ export const ProgressProvider = ({ children, user }) => {
     setIsLoading(true);
     try {
       console.log('Loading progress for user:', userId);
+      console.log('Using baseUrl:', baseUrl);
       const response = await fetch(`${baseUrl}/progress/${userId}`);
       console.log('Progress response status:', response.status);
       

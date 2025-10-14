@@ -27,17 +27,15 @@ function App() {
   const [message, setMessage] = useState('');
 
   const API_URL = import.meta.env.VITE_API_URL || '';
+  const useAbsolute = API_URL && !API_URL.includes('localhost');
+  const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
 
-    // Prefer same-origin requests (works with Vite proxy). If VITE_API_URL is
-    // provided and not pointing to localhost, use it; otherwise use relative path.
-    const useAbsolute = API_URL && !API_URL.includes('localhost');
-    const endpoint = useAbsolute 
-      ? `${API_URL}${isLogin ? '/login' : '/signup'}` 
-      : `${isLogin ? '/login' : '/signup'}`;
+    // Use the same baseUrl logic as ProgressContext
+    const endpoint = `${baseUrl}${isLogin ? '/login' : '/signup'}`;
     const method = 'POST';
 
     try {
