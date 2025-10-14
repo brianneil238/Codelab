@@ -62,8 +62,14 @@ function App() {
         setMessage(data.message || 'An error occurred');
       }
     } catch (error) {
-      setMessage(`Network error: ${error?.message || 'request failed'}`);
       console.error('Network error calling', endpoint, error);
+      
+      // Check if it's a network error (backend down)
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setMessage('Server is temporarily unavailable. Please try again in a few moments.');
+      } else {
+        setMessage(`Network error: ${error?.message || 'request failed'}`);
+      }
     }
   };
 

@@ -54,7 +54,7 @@ export const ProgressProvider = ({ children, user }) => {
   };
 
   // Load progress from backend
-  const loadProgressFromBackend = async (userId) => {
+  const loadProgressFromBackend = async (userId, retryCount = 0) => {
     setIsLoading(true);
     try {
       console.log('Loading progress for user:', userId);
@@ -109,6 +109,14 @@ export const ProgressProvider = ({ children, user }) => {
       }
     } catch (error) {
       console.error('Error loading progress from backend:', error);
+      
+      // Retry once if it's a network error and we haven't retried yet
+      if (retryCount === 0 && error.name === 'TypeError') {
+        console.log('Retrying progress load...');
+        setTimeout(() => loadProgressFromBackend(userId, 1), 2000);
+        return;
+      }
+      
       // Fallback to localStorage if backend fails
       loadProgressFromLocalStorage();
     } finally {
@@ -143,10 +151,12 @@ export const ProgressProvider = ({ children, user }) => {
       });
       
       if (!response.ok) {
-        console.error('Failed to save progress to backend');
+        console.error('Failed to save progress to backend, status:', response.status);
+        // Don't throw error, just log it - progress is still saved locally
       }
     } catch (error) {
       console.error('Error saving progress to backend:', error);
+      // Don't throw error, just log it - progress is still saved locally
     }
   };
 
