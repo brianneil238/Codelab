@@ -10,18 +10,114 @@ export const useProgress = () => {
   return context;
 };
 
-export const ProgressProvider = ({ children }) => {
-  const [progress, setProgress] = useState(() => {
-    // Load progress from localStorage
-    const savedProgress = localStorage.getItem('codelab-progress');
-    return savedProgress ? JSON.parse(savedProgress) : {
-      lectures: {},
-      quizzes: {},
-      courses: {}
-    };
+export const ProgressProvider = ({ children, user }) => {
+  const [progress, setProgress] = useState({
+    lectures: {},
+    quizzes: {},
+    courses: {}
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Save progress to localStorage whenever it changes
+  // API base URL
+  const API_URL = import.meta.env.VITE_API_URL || '';
+  const useAbsolute = API_URL && !API_URL.includes('localhost');
+  const baseUrl = useAbsolute ? API_URL : '';
+
+  // Load progress from backend when user changes
+  useEffect(() => {
+    if (user?.id) {
+      loadProgressFromBackend(user.id);
+    }
+  }, [user?.id]);
+
+  // Load progress from backend
+  const loadProgressFromBackend = async (userId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${baseUrl}/progress/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const backendProgress = data.progress || [];
+        
+        // Convert backend format to frontend format
+        const convertedProgress = {
+          lectures: {},
+          quizzes: {},
+          courses: {}
+        };
+        
+        backendProgress.forEach(item => {
+          const key = `${item.course}-${item.lecture_id}`;
+          if (item.type === 'lecture') {
+            convertedProgress.lectures[key] = {
+              completed: item.completed,
+              completedAt: item.last_updated,
+              progress: item.completed ? 100 : 0
+            };
+          } else if (item.type === 'quiz') {
+            convertedProgress.quizzes[key] = {
+              completed: item.completed,
+              score: item.score,
+              total: 10, // Assuming 10 questions per quiz
+              percentage: Math.round((item.score / 10) * 100),
+              passed: item.score >= 7, // Assuming 70% pass rate
+              completedAt: item.last_updated
+            };
+          }
+        });
+        
+        setProgress(convertedProgress);
+        
+        // Update course progress
+        const courses = ['HTML', 'C++', 'Python'];
+        courses.forEach(course => {
+          updateCourseProgress(course, convertedProgress);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading progress from backend:', error);
+      // Fallback to localStorage if backend fails
+      loadProgressFromLocalStorage();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fallback: Load progress from localStorage
+  const loadProgressFromLocalStorage = () => {
+    const savedProgress = localStorage.getItem('codelab-progress');
+    if (savedProgress) {
+      setProgress(JSON.parse(savedProgress));
+    }
+  };
+
+  // Save progress to backend
+  const saveProgressToBackend = async (userId, course, lectureId, type, completed, score = 0) => {
+    try {
+      const response = await fetch(`${baseUrl}/progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          course,
+          lectureId,
+          type,
+          completed,
+          score
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to save progress to backend');
+      }
+    } catch (error) {
+      console.error('Error saving progress to backend:', error);
+    }
+  };
+
+  // Save progress to localStorage as backup
   useEffect(() => {
     localStorage.setItem('codelab-progress', JSON.stringify(progress));
   }, [progress]);
@@ -35,17 +131,26 @@ export const ProgressProvider = ({ children }) => {
   }, []); // Run once on mount
 
   const markLectureComplete = (course, lectureId) => {
-    setProgress(prev => ({
-      ...prev,
-      lectures: {
-        ...prev.lectures,
-        [`${course}-${lectureId}`]: {
-          completed: true,
-          completedAt: new Date().toISOString(),
-          progress: 100
+    setProgress(prev => {
+      const newProgress = {
+        ...prev,
+        lectures: {
+          ...prev.lectures,
+          [`${course}-${lectureId}`]: {
+            completed: true,
+            completedAt: new Date().toISOString(),
+            progress: 100
+          }
         }
+      };
+      
+      // Save to backend
+      if (user?.id) {
+        saveProgressToBackend(user.id, course, lectureId, 'lecture', true);
       }
-    }));
+      
+      return newProgress;
+    });
     updateCourseProgress(course);
   };
 
@@ -53,34 +158,44 @@ export const ProgressProvider = ({ children }) => {
     const percentage = Math.round((score / total) * 100);
     const passed = percentage >= 70;
     
-    setProgress(prev => ({
-      ...prev,
-      quizzes: {
-        ...prev.quizzes,
-        [`${course}-${lectureId}`]: {
-          completed: true,
-          score: score,
-          total: total,
-          percentage: percentage,
-          passed: passed,
-          completedAt: new Date().toISOString()
+    setProgress(prev => {
+      const newProgress = {
+        ...prev,
+        quizzes: {
+          ...prev.quizzes,
+          [`${course}-${lectureId}`]: {
+            completed: true,
+            score: score,
+            total: total,
+            percentage: percentage,
+            passed: passed,
+            completedAt: new Date().toISOString()
+          }
         }
+      };
+      
+      // Save to backend
+      if (user?.id) {
+        saveProgressToBackend(user.id, course, lectureId, 'quiz', true, score);
       }
-    }));
+      
+      return newProgress;
+    });
     updateCourseProgress(course);
   };
 
-  const updateCourseProgress = (course) => {
+  const updateCourseProgress = (course, progressData = null) => {
     setProgress(prev => {
+      const data = progressData || prev;
       const courseLectures = getCourseLectures(course);
       const courseQuizzes = getCourseQuizzes(course);
       
       const completedLectures = courseLectures.filter(lectureId => 
-        prev.lectures[`${course}-${lectureId}`]?.completed
+        data.lectures[`${course}-${lectureId}`]?.completed
       ).length;
       
       const completedQuizzes = courseQuizzes.filter(lectureId => 
-        prev.quizzes[`${course}-${lectureId}`]?.completed
+        data.quizzes[`${course}-${lectureId}`]?.completed
       ).length;
       
       const totalItems = courseLectures.length + courseQuizzes.length;

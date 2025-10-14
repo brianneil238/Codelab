@@ -108,7 +108,7 @@ function App() {
   // If user is logged in and viewing a course, show course lecture
   if (isLoggedIn && user && currentCourse) {
     return (
-      <ProgressProvider>
+      <ProgressProvider user={user}>
         <CourseLecture course={currentCourse} onBack={handleBackToDashboard} />
       </ProgressProvider>
     );
@@ -117,7 +117,7 @@ function App() {
   // If user is logged in, show dashboard
   if (isLoggedIn && user) {
     return (
-      <ProgressProvider>
+      <ProgressProvider user={user}>
         <Dashboard user={user} onLogout={handleLogout} onCourseSelect={handleCourseSelect} />
       </ProgressProvider>
     );

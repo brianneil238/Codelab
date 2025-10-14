@@ -49,8 +49,32 @@ const createUsersTable = async () => {
   }
 };
 
+// Create progress table if it doesn't exist
+const createProgressTable = async () => {
+  try {
+    const query = `
+      CREATE TABLE IF NOT EXISTS user_progress (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        course VARCHAR(50) NOT NULL,
+        lecture_id VARCHAR(100) NOT NULL,
+        type VARCHAR(20) NOT NULL CHECK (type IN ('lecture', 'quiz')),
+        completed BOOLEAN DEFAULT FALSE,
+        score INTEGER DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, course, lecture_id, type)
+      )
+    `;
+    await pool.query(query);
+    console.log('Progress table created or already exists');
+  } catch (error) {
+    console.error('Error creating progress table:', error);
+  }
+};
+
 // Initialize database
 createUsersTable();
+createProgressTable();
 
 // Signup route
 app.post('/signup', async (req, res) => {
@@ -153,6 +177,52 @@ app.post('/login', async (req, res) => {
 // Health check route for uptime monitoring and Render health checks
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+// Progress routes
+app.get('/progress/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const query = 'SELECT * FROM user_progress WHERE user_id = $1 ORDER BY last_updated DESC';
+    const result = await pool.query(query, [userId]);
+    
+    res.status(200).json({ progress: result.rows });
+  } catch (error) {
+    console.error('Get progress error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/progress', async (req, res) => {
+  try {
+    const { userId, course, lectureId, type, completed, score } = req.body;
+    
+    if (!userId || !course || !lectureId || !type) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    
+    const query = `
+      INSERT INTO user_progress (user_id, course, lecture_id, type, completed, score)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (user_id, course, lecture_id, type)
+      DO UPDATE SET 
+        completed = EXCLUDED.completed,
+        score = EXCLUDED.score,
+        last_updated = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, course, lectureId, type, completed || false, score || 0]);
+    
+    res.status(200).json({ 
+      message: 'Progress updated successfully',
+      progress: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update progress error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Delete user route (for testing purposes)
