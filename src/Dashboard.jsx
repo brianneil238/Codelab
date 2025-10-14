@@ -8,6 +8,16 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
   const overallProgress = getOverallProgress();
   const streak = getStreak();
   
+  // Determine best course to continue based on highest progress
+  const availableCourses = ['HTML', 'C++', 'Python'];
+  const bestCourse = availableCourses.reduce((best, course) => {
+    const progressValue = getCourseProgress(course).progress || 0;
+    if (progressValue > best.progress) {
+      return { course, progress: progressValue };
+    }
+    return best;
+  }, { course: 'HTML', progress: -1 }).course;
+  
   return (
     <div className="dashboard">
       <header className="dashboard-header">
@@ -124,10 +134,12 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
             </div>
 
             <div className="feature-card">
-              <div className="feature-icon">📊</div>
-              <h3>Progress</h3>
-              <p>Track your learning progress across all languages</p>
-              <button className="feature-btn">View Progress</button>
+              <div className="feature-icon">🏅</div>
+              <h3>Achievements</h3>
+              <p>View your badges, milestones, and learning streaks</p>
+              <button className="feature-btn">
+                View Achievements
+              </button>
             </div>
           </div>
 
