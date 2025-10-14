@@ -25,6 +25,8 @@ function App() {
     password: ''
   });
   const [message, setMessage] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
 
   const API_URL = import.meta.env.VITE_API_URL || '';
   const useAbsolute = API_URL && !API_URL.includes('localhost');
@@ -59,7 +61,14 @@ function App() {
         }
         // In a real app, you'd store the token (data.token) and redirect the user
       } else {
-        setMessage(data.message || 'An error occurred');
+        // Check if it's a "user already exists" error during signup
+        if (!isLogin && data.message && data.message.toLowerCase().includes('already exists')) {
+          setNotificationMessage(`This email is already registered! You can use ${formData.email} to log in instead.`);
+          setShowNotification(true);
+          setMessage(''); // Clear the regular message
+        } else {
+          setMessage(data.message || 'An error occurred');
+        }
       }
     } catch (error) {
       console.error('Network error calling', endpoint, error);
@@ -107,6 +116,16 @@ function App() {
 
   const handleBackToDashboard = () => {
     setCurrentCourse(null);
+  };
+
+  const closeNotification = () => {
+    setShowNotification(false);
+    setNotificationMessage('');
+  };
+
+  const switchToLogin = () => {
+    setIsLogin(true);
+    closeNotification();
   };
 
   // If user is logged in and viewing a course, show course lecture
@@ -301,6 +320,29 @@ function App() {
             </div>
           </div>
         </div>
+        
+        {/* Notification Popup */}
+        {showNotification && (
+          <div className="notification-overlay">
+            <div className="notification-popup">
+              <div className="notification-header">
+                <i className="fas fa-info-circle"></i>
+                <h3>Account Already Exists</h3>
+              </div>
+              <div className="notification-content">
+                <p>{notificationMessage}</p>
+              </div>
+              <div className="notification-actions">
+                <button className="btn-secondary" onClick={closeNotification}>
+                  Close
+                </button>
+                <button className="btn-primary" onClick={switchToLogin}>
+                  Switch to Login
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ProgressProvider>
   );
