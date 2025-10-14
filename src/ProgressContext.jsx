@@ -16,6 +16,11 @@ export const ProgressProvider = ({ children, user }) => {
     quizzes: {},
     courses: {}
   });
+  const [streak, setStreak] = useState({
+    current_streak: 0,
+    longest_streak: 0,
+    total_days_active: 0
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   // API base URL
@@ -23,21 +28,43 @@ export const ProgressProvider = ({ children, user }) => {
   const useAbsolute = API_URL && !API_URL.includes('localhost');
   const baseUrl = useAbsolute ? API_URL : '';
 
-  // Load progress from backend when user changes
+  // Load progress and streak from backend when user changes
   useEffect(() => {
     if (user?.id) {
       loadProgressFromBackend(user.id);
+      loadStreakFromBackend(user.id);
     }
   }, [user?.id]);
+
+  // Load streak from backend
+  const loadStreakFromBackend = async (userId) => {
+    try {
+      const response = await fetch(`${baseUrl}/streak/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStreak(data.streak || {
+          current_streak: 0,
+          longest_streak: 0,
+          total_days_active: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error loading streak from backend:', error);
+    }
+  };
 
   // Load progress from backend
   const loadProgressFromBackend = async (userId) => {
     setIsLoading(true);
     try {
+      console.log('Loading progress for user:', userId);
       const response = await fetch(`${baseUrl}/progress/${userId}`);
+      console.log('Progress response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
         const backendProgress = data.progress || [];
+        console.log('Backend progress data:', backendProgress);
         
         // Convert backend format to frontend format
         const convertedProgress = {
@@ -66,6 +93,7 @@ export const ProgressProvider = ({ children, user }) => {
           }
         });
         
+        console.log('Converted progress:', convertedProgress);
         setProgress(convertedProgress);
         
         // Update course progress
@@ -73,6 +101,10 @@ export const ProgressProvider = ({ children, user }) => {
         courses.forEach(course => {
           updateCourseProgress(course, convertedProgress);
         });
+      } else {
+        console.error('Failed to load progress, status:', response.status);
+        // Fallback to localStorage if backend fails
+        loadProgressFromLocalStorage();
       }
     } catch (error) {
       console.error('Error loading progress from backend:', error);
@@ -270,6 +302,10 @@ export const ProgressProvider = ({ children, user }) => {
     return totalCourses > 0 ? Math.round(totalProgress / totalCourses) : 0;
   };
 
+  const getStreak = () => {
+    return streak;
+  };
+
   const resetProgress = () => {
     setProgress({
       lectures: {},
@@ -280,12 +316,15 @@ export const ProgressProvider = ({ children, user }) => {
 
   const value = {
     progress,
+    streak,
+    isLoading,
     markLectureComplete,
     markQuizComplete,
     getLectureProgress,
     getQuizProgress,
     getCourseProgress,
     getOverallProgress,
+    getStreak,
     resetProgress
   };
 

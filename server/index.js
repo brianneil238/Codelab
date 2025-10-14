@@ -72,9 +72,33 @@ const createProgressTable = async () => {
   }
 };
 
+// Create streak table if it doesn't exist
+const createStreakTable = async () => {
+  try {
+    const query = `
+      CREATE TABLE IF NOT EXISTS user_streaks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        current_streak INTEGER DEFAULT 0,
+        longest_streak INTEGER DEFAULT 0,
+        last_activity_date DATE,
+        total_days_active INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id)
+      )
+    `;
+    await pool.query(query);
+    console.log('Streak table created or already exists');
+  } catch (error) {
+    console.error('Error creating streak table:', error);
+  }
+};
+
 // Initialize database
 createUsersTable();
 createProgressTable();
+createStreakTable();
 
 // Signup route
 app.post('/signup', async (req, res) => {
@@ -215,6 +239,11 @@ app.post('/progress', async (req, res) => {
     
     const result = await pool.query(query, [userId, course, lectureId, type, completed || false, score || 0]);
     
+    // Update streak when progress is made
+    if (completed) {
+      await updateUserStreak(userId);
+    }
+    
     res.status(200).json({ 
       message: 'Progress updated successfully',
       progress: result.rows[0]
@@ -224,6 +253,92 @@ app.post('/progress', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Streak routes
+app.get('/streak/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const query = 'SELECT * FROM user_streaks WHERE user_id = $1';
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length === 0) {
+      // Create initial streak record
+      const insertQuery = `
+        INSERT INTO user_streaks (user_id, current_streak, longest_streak, last_activity_date, total_days_active)
+        VALUES ($1, 0, 0, NULL, 0)
+        RETURNING *
+      `;
+      const newResult = await pool.query(insertQuery, [userId]);
+      return res.status(200).json({ streak: newResult.rows[0] });
+    }
+    
+    res.status(200).json({ streak: result.rows[0] });
+  } catch (error) {
+    console.error('Get streak error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to update user streak
+const updateUserStreak = async (userId) => {
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Get current streak
+    const streakQuery = 'SELECT * FROM user_streaks WHERE user_id = $1';
+    const streakResult = await pool.query(streakQuery, [userId]);
+    
+    if (streakResult.rows.length === 0) {
+      // Create new streak record
+      const insertQuery = `
+        INSERT INTO user_streaks (user_id, current_streak, longest_streak, last_activity_date, total_days_active)
+        VALUES ($1, 1, 1, $2, 1)
+        ON CONFLICT (user_id) DO NOTHING
+      `;
+      await pool.query(insertQuery, [userId, today]);
+    } else {
+      const streak = streakResult.rows[0];
+      const lastActivity = streak.last_activity_date;
+      
+      let newStreak = streak.current_streak;
+      let newTotalDays = streak.total_days_active;
+      
+      if (!lastActivity) {
+        // First activity
+        newStreak = 1;
+        newTotalDays = 1;
+      } else {
+        const lastDate = new Date(lastActivity);
+        const todayDate = new Date(today);
+        const diffTime = todayDate - lastDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          // Consecutive day
+          newStreak = streak.current_streak + 1;
+          newTotalDays = streak.total_days_active + 1;
+        } else if (diffDays > 1) {
+          // Streak broken
+          newStreak = 1;
+          newTotalDays = streak.total_days_active + 1;
+        }
+        // If diffDays === 0, same day, don't update streak
+      }
+      
+      const newLongestStreak = Math.max(newStreak, streak.longest_streak);
+      
+      const updateQuery = `
+        UPDATE user_streaks 
+        SET current_streak = $1, longest_streak = $2, last_activity_date = $3, total_days_active = $4, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $5
+      `;
+      await pool.query(updateQuery, [newStreak, newLongestStreak, today, newTotalDays, userId]);
+    }
+  } catch (error) {
+    console.error('Update streak error:', error);
+  }
+};
 
 // Delete user route (for testing purposes)
 app.delete('/delete-user/:email', async (req, res) => {

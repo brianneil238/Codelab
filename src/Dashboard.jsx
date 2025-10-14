@@ -3,9 +3,10 @@ import './Dashboard.css';
 import { useProgress } from './ProgressContext';
 
 function Dashboard({ user, onLogout, onCourseSelect }) {
-  const { getCourseProgress, getOverallProgress } = useProgress();
+  const { getCourseProgress, getOverallProgress, getStreak } = useProgress();
   
   const overallProgress = getOverallProgress();
+  const streak = getStreak();
   
   return (
     <div className="dashboard">
@@ -141,7 +142,7 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
             </div>
             <div className="stat-card">
               <h4>Days Streak</h4>
-              <span className="stat-number">1</span>
+              <span className="stat-number">{streak.current_streak || 0}</span>
             </div>
           </div>
         </div>
