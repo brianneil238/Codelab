@@ -27,10 +27,16 @@ function App() {
   const [message, setMessage] = useState('');
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '' });
 
   const API_URL = import.meta.env.VITE_API_URL || '';
   const useAbsolute = API_URL && !API_URL.includes('localhost');
   const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
+
+  const showToast = (msg) => {
+    setToast({ visible: true, message: msg });
+    setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,6 +64,8 @@ function App() {
           // Login successful - redirect to dashboard
           setUser(data.user);
           setIsLoggedIn(true);
+          const displayName = data?.user?.fullName || data?.user?.username || 'User';
+          showToast(`Login successful. Welcome, ${displayName}!`);
         }
         // In a real app, you'd store the token (data.token) and redirect the user
       } else {
@@ -132,7 +140,12 @@ function App() {
   if (isLoggedIn && user && currentCourse) {
     return (
       <ProgressProvider user={user}>
-        <CourseLecture course={currentCourse} onBack={handleBackToDashboard} />
+        <>
+          {toast.visible && (
+            <div className="toast toast-success">{toast.message}</div>
+          )}
+          <CourseLecture course={currentCourse} onBack={handleBackToDashboard} />
+        </>
       </ProgressProvider>
     );
   }
@@ -141,7 +154,12 @@ function App() {
   if (isLoggedIn && user) {
     return (
       <ProgressProvider user={user}>
-        <Dashboard user={user} onLogout={handleLogout} onCourseSelect={handleCourseSelect} />
+        <>
+          {toast.visible && (
+            <div className="toast toast-success">{toast.message}</div>
+          )}
+          <Dashboard user={user} onLogout={handleLogout} onCourseSelect={handleCourseSelect} />
+        </>
       </ProgressProvider>
     );
   }
@@ -149,6 +167,9 @@ function App() {
   return (
     <ProgressProvider>
       <div className="login-page">
+        {toast.visible && (
+          <div className="toast toast-success">{toast.message}</div>
+        )}
         <div className="login-container">
           <div className="login-form-section">
             <div className="logo-section">
