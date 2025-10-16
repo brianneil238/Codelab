@@ -61,11 +61,15 @@ function App() {
       if (response.ok) {
         setMessage(data.message);
         if (isLogin) {
-          // Login successful - redirect to dashboard
-          setUser(data.user);
-          setIsLoggedIn(true);
+          // Show success message first, then redirect after a delay
           const displayName = data?.user?.fullName || data?.user?.username || 'User';
           showToast(`Login successful. Welcome, ${displayName}!`);
+          
+          // Delay the redirect to show the toast
+          setTimeout(() => {
+            setUser(data.user);
+            setIsLoggedIn(true);
+          }, 1500);
         }
         // In a real app, you'd store the token (data.token) and redirect the user
       } else {
@@ -140,12 +144,7 @@ function App() {
   if (isLoggedIn && user && currentCourse) {
     return (
       <ProgressProvider user={user}>
-        <>
-          {toast.visible && (
-            <div className="toast toast-success">{toast.message}</div>
-          )}
-          <CourseLecture course={currentCourse} onBack={handleBackToDashboard} />
-        </>
+        <CourseLecture course={currentCourse} onBack={handleBackToDashboard} />
       </ProgressProvider>
     );
   }
@@ -154,12 +153,7 @@ function App() {
   if (isLoggedIn && user) {
     return (
       <ProgressProvider user={user}>
-        <>
-          {toast.visible && (
-            <div className="toast toast-success">{toast.message}</div>
-          )}
-          <Dashboard user={user} onLogout={handleLogout} onCourseSelect={handleCourseSelect} />
-        </>
+        <Dashboard user={user} onLogout={handleLogout} onCourseSelect={handleCourseSelect} />
       </ProgressProvider>
     );
   }
