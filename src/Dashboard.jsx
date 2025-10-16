@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { useProgress } from './ProgressContext';
 
 function Dashboard({ user, onLogout, onCourseSelect }) {
-  const { getCourseProgress, getOverallProgress, getStreak, isLoading } = useProgress();
+  const { getCourseProgress, getOverallProgress, getStreak, isLoading, refreshProgress } = useProgress();
   
   const overallProgress = getOverallProgress();
   const streak = getStreak();
@@ -46,7 +46,17 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
           </div>
 
           <div className="progress-overview">
-            <h3>Your Learning Progress</h3>
+            <div className="progress-header">
+              <h3>Your Learning Progress</h3>
+              <button 
+                className="refresh-btn" 
+                onClick={refreshProgress}
+                disabled={isLoading}
+                title="Refresh progress from server"
+              >
+                {isLoading ? '⟳' : '↻'}
+              </button>
+            </div>
             {isLoading ? (
               <div className="loading-message">Loading your progress...</div>
             ) : (
@@ -159,6 +169,19 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
             <div className="stat-card">
               <h4>Days Streak</h4>
               <span className="stat-number">{streak.current_streak || 0}</span>
+            </div>
+          </div>
+
+          {/* Debug Panel - Remove in production */}
+          <div className="debug-panel">
+            <h4>Debug Info</h4>
+            <div className="debug-content">
+              <p><strong>User ID:</strong> {user?.id}</p>
+              <p><strong>Overall Progress:</strong> {overallProgress}%</p>
+              <p><strong>HTML Progress:</strong> {getCourseProgress('HTML').progress}%</p>
+              <p><strong>C++ Progress:</strong> {getCourseProgress('C++').progress}%</p>
+              <p><strong>Python Progress:</strong> {getCourseProgress('Python').progress}%</p>
+              <p><strong>Loading:</strong> {isLoading ? 'Yes' : 'No'}</p>
             </div>
           </div>
         </div>

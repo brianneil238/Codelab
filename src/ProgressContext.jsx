@@ -35,12 +35,17 @@ export const ProgressProvider = ({ children, user }) => {
   // Load progress and streak from backend when user changes
   useEffect(() => {
     if (user?.id) {
+      console.log('User logged in, loading progress for user ID:', user.id);
+      console.log('User object:', user);
+      
       // First try to load from backend
       loadProgressFromBackend(user.id);
       loadStreakFromBackend(user.id);
       
       // Also sync any localStorage progress to backend
       syncLocalStorageToBackend(user.id);
+    } else {
+      console.log('No user ID available, skipping progress load');
     }
   }, [user?.id]);
 
@@ -392,6 +397,15 @@ export const ProgressProvider = ({ children, user }) => {
     });
   };
 
+  // Manual refresh function to force reload progress
+  const refreshProgress = () => {
+    if (user?.id) {
+      console.log('Manual refresh triggered for user:', user.id);
+      loadProgressFromBackend(user.id);
+      loadStreakFromBackend(user.id);
+    }
+  };
+
   const value = {
     progress,
     streak,
@@ -403,7 +417,8 @@ export const ProgressProvider = ({ children, user }) => {
     getCourseProgress,
     getOverallProgress,
     getStreak,
-    resetProgress
+    resetProgress,
+    refreshProgress
   };
 
   return (
