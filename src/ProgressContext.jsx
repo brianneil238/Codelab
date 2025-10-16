@@ -23,16 +23,24 @@ export const ProgressProvider = ({ children, user }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  // API base URL
+  // API base URL - Force use of Render backend for consistency
   const API_URL = import.meta.env.VITE_API_URL || '';
   const useAbsolute = API_URL && !API_URL.includes('localhost');
   const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
+  
+  console.log('ProgressContext - API_URL:', API_URL);
+  console.log('ProgressContext - useAbsolute:', useAbsolute);
+  console.log('ProgressContext - baseUrl:', baseUrl);
 
   // Load progress and streak from backend when user changes
   useEffect(() => {
     if (user?.id) {
+      // First try to load from backend
       loadProgressFromBackend(user.id);
       loadStreakFromBackend(user.id);
+      
+      // Also sync any localStorage progress to backend
+      syncLocalStorageToBackend(user.id);
     }
   }, [user?.id]);
 
@@ -97,6 +105,9 @@ export const ProgressProvider = ({ children, user }) => {
         console.log('Converted progress:', convertedProgress);
         setProgress(convertedProgress);
         
+        // Save to localStorage as backup
+        localStorage.setItem('codelab-progress', JSON.stringify(convertedProgress));
+        
         // Update course progress after setting the progress state
         setTimeout(() => {
           const courses = ['HTML', 'C++', 'Python'];
@@ -128,9 +139,52 @@ export const ProgressProvider = ({ children, user }) => {
 
   // Fallback: Load progress from localStorage
   const loadProgressFromLocalStorage = () => {
+    console.log('Loading progress from localStorage fallback');
     const savedProgress = localStorage.getItem('codelab-progress');
     if (savedProgress) {
-      setProgress(JSON.parse(savedProgress));
+      try {
+        const parsedProgress = JSON.parse(savedProgress);
+        console.log('Loaded progress from localStorage:', parsedProgress);
+        setProgress(parsedProgress);
+        
+        // Update course progress
+        const courses = ['HTML', 'C++', 'Python'];
+        courses.forEach(course => {
+          updateCourseProgress(course);
+        });
+      } catch (error) {
+        console.error('Error parsing localStorage progress:', error);
+      }
+    } else {
+      console.log('No progress found in localStorage');
+    }
+  };
+
+  // Sync localStorage progress to backend
+  const syncLocalStorageToBackend = async (userId) => {
+    const savedProgress = localStorage.getItem('codelab-progress');
+    if (savedProgress) {
+      try {
+        const parsedProgress = JSON.parse(savedProgress);
+        console.log('Syncing localStorage progress to backend:', parsedProgress);
+        
+        // Send each completed lecture/quiz to backend
+        Object.entries(parsedProgress.lectures).forEach(([key, lecture]) => {
+          if (lecture.completed) {
+            const [course, lectureId] = key.split('-');
+            saveProgressToBackend(userId, course, parseInt(lectureId), 'lecture', true);
+          }
+        });
+        
+        Object.entries(parsedProgress.quizzes).forEach(([key, quiz]) => {
+          if (quiz.completed) {
+            const [course, lectureId] = key.split('-');
+            saveProgressToBackend(userId, course, parseInt(lectureId), 'quiz', true, quiz.score);
+          }
+        });
+      } catch (error) {
+        console.error('Error syncing localStorage to backend:', error);
+      }
     }
   };
 

@@ -32,6 +32,10 @@ function App() {
   const API_URL = import.meta.env.VITE_API_URL || '';
   const useAbsolute = API_URL && !API_URL.includes('localhost');
   const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
+  
+  console.log('App - API_URL:', API_URL);
+  console.log('App - useAbsolute:', useAbsolute);
+  console.log('App - baseUrl:', baseUrl);
 
   const showToast = (msg) => {
     setToast({ visible: true, message: msg });
