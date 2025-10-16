@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import Dashboard from './Dashboard';
 import CourseLecture from './CourseLecture';
 import { ProgressProvider } from './ProgressContext';
-import logo from './assets/batangas_state_u_logo.png'; // Assuming you'll add the logo
+// BSU logo removed from login page header per request
+// import logo from './assets/batangas_state_u_logo.png';
 import bikeRentalLogo from './assets/university_bike_rental_logo.png'; // Assuming you'll add this logo
+import EditorWorkspace from './EditorWorkspace';
 
 function App() {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,6 +27,27 @@ function App() {
     password: ''
   });
   const [message, setMessage] = useState('');
+
+  // Restore auth and last page
+  useEffect(() => {
+    try {
+      const savedAuth = localStorage.getItem('codelab-auth');
+      if (savedAuth) {
+        const { user: savedUser, token } = JSON.parse(savedAuth);
+        if (savedUser && token) {
+          setUser(savedUser);
+          setIsLoggedIn(true);
+        }
+      }
+      const savedPage = localStorage.getItem('codelab-current');
+      if (savedPage) setCurrentCourse(savedPage);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (currentCourse) localStorage.setItem('codelab-current', currentCourse);
+    else localStorage.removeItem('codelab-current');
+  }, [currentCourse]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,6 +73,7 @@ function App() {
           // Login successful - redirect to dashboard
           setUser(data.user);
           setIsLoggedIn(true);
+          try { localStorage.setItem('codelab-auth', JSON.stringify({ user: data.user, token: data.token })); } catch {}
         }
         // In a real app, you'd store the token (data.token) and redirect the user
       } else {
@@ -73,6 +97,10 @@ function App() {
     setIsLoggedIn(false);
     setUser(null);
     setCurrentCourse(null);
+    try {
+      localStorage.removeItem('codelab-auth');
+      localStorage.removeItem('codelab-current');
+    } catch {}
     setFormData({
       fullName: '',
       username: '',
@@ -99,6 +127,13 @@ function App() {
 
   // If user is logged in and viewing a course, show course lecture
   if (isLoggedIn && user && currentCourse) {
+    if (currentCourse === 'EDITOR') {
+      return (
+        <ProgressProvider>
+          <EditorWorkspace onBack={handleBackToDashboard} />
+        </ProgressProvider>
+      );
+    }
     return (
       <ProgressProvider>
         <CourseLecture course={currentCourse} onBack={handleBackToDashboard} />
@@ -119,9 +154,6 @@ function App() {
     <ProgressProvider>
       <div className="login-page">
       <div className="login-container">
-        <div className="logo-section">
-          <img src={logo} alt="Batangas State University Logo" className="bsu-logo" />
-        </div>
         <div className="login-form-section">
           <div className="university-bike-rental-header">
             <img src={bikeRentalLogo} alt="University Bike Rental Logo" className="bike-rental-logo" />

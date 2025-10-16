@@ -137,7 +137,7 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
               <div className="feature-icon">📝</div>
               <h3>Code Editor</h3>
               <p>Write and test your code in our integrated editor</p>
-              <button className="feature-btn">Start Coding</button>
+              <button className="feature-btn" onClick={() => onCourseSelect('EDITOR')}>Start Coding</button>
             </div>
 
             <div className="feature-card">
@@ -172,18 +172,7 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
             </div>
           </div>
 
-          {/* Debug Panel - Remove in production */}
-          <div className="debug-panel">
-            <h4>Debug Info</h4>
-            <div className="debug-content">
-              <p><strong>User ID:</strong> {user?.id}</p>
-              <p><strong>Overall Progress:</strong> {overallProgress}%</p>
-              <p><strong>HTML Progress:</strong> {getCourseProgress('HTML').progress}%</p>
-              <p><strong>C++ Progress:</strong> {getCourseProgress('C++').progress}%</p>
-              <p><strong>Python Progress:</strong> {getCourseProgress('Python').progress}%</p>
-              <p><strong>Loading:</strong> {isLoading ? 'Yes' : 'No'}</p>
-            </div>
-          </div>
+          {/* Debug panel removed */}
         </div>
       </main>
     </div>

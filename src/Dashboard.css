@@ -301,25 +301,7 @@
   cursor: not-allowed;
 }
 
-.debug-panel {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-}
-
-.debug-panel h4 {
-  margin: 0 0 0.5rem 0;
-  color: #495057;
-  font-size: 1rem;
-}
-
-.debug-content p {
-  margin: 0.25rem 0;
-  color: #6c757d;
-}
+/* debug panel styles removed */
 
 .loading-message {
   text-align: center;

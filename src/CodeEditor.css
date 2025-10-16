@@ -178,6 +178,16 @@
   border-top: 1px solid #e9ecef;
 }
 
+.debug-hints {
+  background: #fff8e1;
+  border-top: 1px solid #ffe082;
+  padding: 0.8rem 1.2rem;
+}
+
+.debug-hints h4 { margin: 0 0 0.4rem 0; color: #8d6e63; font-size: 0.95rem; }
+.debug-hints ul { margin: 0; padding-left: 1.2rem; color: #6d4c41; font-size: 0.9rem; }
+.debug-hints li { margin-bottom: 0.25rem; }
+
 .editor-tips h4 {
   margin: 0 0 0.5rem 0;
   color: #4CAF50;

@@ -95,10 +95,30 @@ const createStreakTable = async () => {
   }
 };
 
+// Achievements table
+const createAchievementsTable = async () => {
+  try {
+    const query = `
+      CREATE TABLE IF NOT EXISTS user_achievements (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        key VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, key)
+      )
+    `;
+    await pool.query(query);
+    console.log('Achievements table created or already exists');
+  } catch (error) {
+    console.error('Error creating achievements table:', error);
+  }
+};
+
 // Initialize database
 createUsersTable();
 createProgressTable();
 createStreakTable();
+createAchievementsTable();
 
 // Signup route
 app.post('/signup', async (req, res) => {
@@ -220,7 +240,7 @@ app.get('/progress/:userId', async (req, res) => {
 
 app.post('/progress', async (req, res) => {
   try {
-    const { userId, course, lectureId, type, completed, score } = req.body;
+    const { userId, course, lectureId, type, completed, score, total } = req.body;
     
     if (!userId || !course || !lectureId || !type) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -243,6 +263,28 @@ app.post('/progress', async (req, res) => {
     if (completed) {
       await updateUserStreak(userId);
     }
+
+    // Award achievement: perfect first try for quizzes
+    try {
+      if (type === 'quiz' && completed && typeof score === 'number' && typeof total === 'number' && total > 0 && score === total) {
+        // Check previous attempts for this quiz
+        const attemptsQuery = `
+          SELECT COUNT(*) AS cnt FROM user_progress
+          WHERE user_id = $1 AND course = $2 AND lecture_id = $3 AND type = 'quiz' AND completed = true
+        `;
+        const attempts = await pool.query(attemptsQuery, [userId, course, lectureId]);
+        const count = parseInt(attempts.rows[0]?.cnt || '0', 10);
+        if (count === 1) {
+          const key = `perfect_first_try:${course}:${lectureId}`;
+          await pool.query(
+            `INSERT INTO user_achievements (user_id, key) VALUES ($1, $2) ON CONFLICT (user_id, key) DO NOTHING`,
+            [userId, key]
+          );
+        }
+      }
+    } catch (e) {
+      console.error('Achievement check error:', e);
+    }
     
     res.status(200).json({ 
       message: 'Progress updated successfully',
@@ -250,6 +292,18 @@ app.post('/progress', async (req, res) => {
     });
   } catch (error) {
     console.error('Update progress error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List achievements for a user
+app.get('/achievements/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await pool.query('SELECT key, created_at FROM user_achievements WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+    res.status(200).json({ achievements: result.rows });
+  } catch (error) {
+    console.error('Get achievements error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -276,6 +330,20 @@ app.get('/streak/:userId', async (req, res) => {
     res.status(200).json({ streak: result.rows[0] });
   } catch (error) {
     console.error('Get streak error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Increment/update streak explicitly (can be called on daily activity)
+app.post('/streak/:userId/tick', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await updateUserStreak(userId);
+    const query = 'SELECT * FROM user_streaks WHERE user_id = $1';
+    const result = await pool.query(query, [userId]);
+    return res.status(200).json({ streak: result.rows[0] });
+  } catch (error) {
+    console.error('Tick streak error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -364,3 +432,65 @@ app.delete('/delete-user/:email', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Code execution via Piston proxy
+// Fetch latest runtimes once and cache
+let pistonRuntimes = null;
+const PISTON_BASE = 'https://emkc.org/api/v2/piston';
+
+const mapLanguage = (lang) => {
+  const lower = String(lang || '').toLowerCase();
+  if (lower === 'c++' || lower === 'cpp' || lower === 'cxx') return 'cpp';
+  if (lower === 'python' || lower === 'py') return 'python';
+  return lower;
+};
+
+const getLatestVersion = async (language) => {
+  if (!pistonRuntimes) {
+    try {
+      const resp = await fetch(`${PISTON_BASE}/runtimes`);
+      pistonRuntimes = await resp.json();
+    } catch (e) {
+      console.error('Failed to load Piston runtimes:', e);
+      pistonRuntimes = [];
+    }
+  }
+  const langId = mapLanguage(language);
+  const candidates = pistonRuntimes.filter(r => r.language === langId || (r.aliases && r.aliases.includes(langId)));
+  return candidates.length ? candidates[0].version : 'latest';
+};
+
+app.post('/run', async (req, res) => {
+  try {
+    const { language, code } = req.body || {};
+    if (!language || typeof code !== 'string') {
+      return res.status(400).json({ error: 'language and code are required' });
+    }
+    const langId = mapLanguage(language);
+    if (langId === 'html') {
+      return res.status(400).json({ error: 'HTML is previewed client-side, not executed' });
+    }
+    const version = await getLatestVersion(langId);
+    const payload = {
+      language: langId,
+      version,
+      files: [{ name: `main.${langId === 'python' ? 'py' : (langId === 'cpp' ? 'cpp' : 'txt')}`, content: code }]
+    };
+    const execResp = await fetch(`${PISTON_BASE}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await execResp.json();
+    if (!execResp.ok) {
+      return res.status(execResp.status).json(result);
+    }
+    const stdout = result?.run?.stdout || '';
+    const stderr = result?.run?.stderr || '';
+    const output = (stdout + (stderr ? (stdout ? '\n' : '') + stderr : '')).trim();
+    res.status(200).json({ output, raw: result });
+  } catch (error) {
+    console.error('Run code error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});

@@ -66,6 +66,19 @@ export const ProgressProvider = ({ children, user }) => {
     }
   };
 
+  // Explicitly tick/update the user's streak
+  const tickStreak = async (userId) => {
+    try {
+      const response = await fetch(`${baseUrl}/streak/${userId}/tick`, { method: 'POST' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.streak) setStreak(data.streak);
+      }
+    } catch (error) {
+      console.error('Error ticking streak:', error);
+    }
+  };
+
   // Load progress from backend
   const loadProgressFromBackend = async (userId, retryCount = 0) => {
     setIsLoading(true);
@@ -107,11 +120,16 @@ export const ProgressProvider = ({ children, user }) => {
           }
         });
         
-        console.log('Converted progress:', convertedProgress);
-        setProgress(convertedProgress);
-        
-        // Save to localStorage as backup
-        localStorage.setItem('codelab-progress', JSON.stringify(convertedProgress));
+        // If backend returned no records, keep existing/local progress instead of wiping it
+        if (backendProgress.length === 0) {
+          console.log('No backend progress found; preserving local progress');
+          loadProgressFromLocalStorage();
+        } else {
+          console.log('Converted progress:', convertedProgress);
+          setProgress(convertedProgress);
+          // Save to localStorage as backup
+          localStorage.setItem('codelab-progress', JSON.stringify(convertedProgress));
+        }
         
         // Update course progress after setting the progress state
         setTimeout(() => {
@@ -194,7 +212,7 @@ export const ProgressProvider = ({ children, user }) => {
   };
 
   // Save progress to backend
-  const saveProgressToBackend = async (userId, course, lectureId, type, completed, score = 0) => {
+  const saveProgressToBackend = async (userId, course, lectureId, type, completed, score = 0, total = 0) => {
     try {
       const response = await fetch(`${baseUrl}/progress`, {
         method: 'POST',
@@ -207,7 +225,8 @@ export const ProgressProvider = ({ children, user }) => {
           lectureId,
           type,
           completed,
-          score
+          score,
+          total
         })
       });
       
@@ -251,6 +270,8 @@ export const ProgressProvider = ({ children, user }) => {
       // Save to backend
       if (user?.id) {
         saveProgressToBackend(user.id, course, lectureId, 'lecture', true);
+        // Also tick streak on successful progress
+        tickStreak(user.id);
       }
       
       return newProgress;
@@ -280,7 +301,9 @@ export const ProgressProvider = ({ children, user }) => {
       
       // Save to backend
       if (user?.id) {
-        saveProgressToBackend(user.id, course, lectureId, 'quiz', true, score);
+        saveProgressToBackend(user.id, course, lectureId, 'quiz', true, score, total);
+        // Also tick streak on successful progress
+        tickStreak(user.id);
       }
       
       return newProgress;

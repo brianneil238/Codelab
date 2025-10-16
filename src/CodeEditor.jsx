@@ -5,10 +5,18 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
   const [code, setCode] = useState(initialCode || '');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [debugHints, setDebugHints] = useState([]);
 
   useEffect(() => {
     setCode(initialCode || '');
   }, [initialCode]);
+
+  // HTML validation: provide hints when common closing tags are missing
+  useEffect(() => {
+    if ((language || '').toLowerCase() === 'html') {
+      setDebugHints(validateHtml(code));
+    }
+  }, [language, code]);
 
   const handleCodeChange = (e) => {
     const newCode = e.target.value;
@@ -21,65 +29,82 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
   const runCode = async () => {
     setIsRunning(true);
     setOutput('Running...');
+    setDebugHints([]);
 
     try {
-      // For HTML, no need to run - it's live preview
       if (language.toLowerCase() === 'html') {
         setIsRunning(false);
         return;
       }
 
-      // Simulate code execution for other languages
-      setTimeout(() => {
-        let result = '';
-        
-        switch (language.toLowerCase()) {
-          case 'c++':
-            if (code.includes('cout')) {
-              // Extract cout statements and simulate output
-              const coutMatches = code.match(/cout\s*<<\s*["']([^"']*)["']/g);
-              if (coutMatches) {
-                result = coutMatches.map(match => {
-                  const content = match.match(/["']([^"']*)["']/);
-                  return content ? content[1] : '';
-                }).join('\n');
-                result += '\nProgram executed successfully!';
-              } else {
-                result = 'C++ program compiled and executed successfully!';
-              }
-            } else if (code.includes('int main')) {
-              result = 'C++ program compiled and executed successfully!';
-            } else {
-              result = 'Please write a valid C++ program with main() function.';
-            }
-            break;
-          case 'python':
-            if (code.includes('print')) {
-              // Extract print statements and simulate output
-              const printMatches = code.match(/print\s*\(\s*["']([^"']*)["']\s*\)/g);
-              if (printMatches) {
-                result = printMatches.map(match => {
-                  const content = match.match(/["']([^"']*)["']/);
-                  return content ? content[1] : '';
-                }).join('\n');
-              } else {
-                result = 'Python code executed successfully!';
-              }
-            } else {
-              result = 'Please use print() to see output.';
-            }
-            break;
-          default:
-            result = 'Code executed successfully!';
-        }
-        
-        setOutput(result);
-        setIsRunning(false);
-      }, 1000);
+      const response = await fetch('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language, code })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        const text = data?.error || 'Failed to run code';
+        setOutput(text);
+        setDebugHints(generateHints(language, code, text));
+      } else {
+        const text = data.output || '';
+        setOutput(text);
+        setDebugHints(generateHints(language, code, text));
+      }
     } catch (error) {
       setOutput('Error: ' + error.message);
+    } finally {
       setIsRunning(false);
     }
+  };
+
+  const generateHints = (lang, source, out) => {
+    const hints = [];
+    const lower = String(lang || '').toLowerCase();
+    const text = (out || '').toLowerCase();
+    if (lower === 'c++') {
+      const hasIostream = /#include\s*<\s*iostream\s*>/i.test(source);
+      const missingIncludeMsg = /did you forget to .*include.*<iostream>|is defined in header '\s*<ostream>/i.test(out);
+      if (!hasIostream && (missingIncludeMsg || /\bcout\b was not declared|\bendl\b was not declared/i.test(out))) {
+        hints.push('Add #include <iostream> at the top of your file.');
+      }
+      if (/cout\' was not declared|\bcout\b was not declared/i.test(out) || /endl\' was not declared|\bendl\b was not declared/i.test(out)) {
+        hints.push('Use std::cout and std::endl or add using namespace std;');
+      }
+      if (/expected identifier before ';' token/i.test(out) || /using namespace\s*;/i.test(source)) {
+        hints.push('Write using namespace std; (missing std after namespace).');
+      }
+      if (!/int\s+main\s*\(/.test(source)) {
+        hints.push('Add an entry point: int main() { /* ... */ }');
+      }
+      if (/expected.*';'|expected.*\}/i.test(out)) {
+        hints.push('Check for missing semicolons or braces. Each statement ends with ;');
+      }
+      if (/include expects \"FILENAME\"/i.test(out)) {
+        hints.push('Fix the include line, e.g., #include <iostream>');
+      }
+      if (hints.length === 0 && /error:/i.test(out)) {
+        hints.push('Read the error line numbers on the right, then fix the referenced lines.');
+      }
+    } else if (lower === 'python') {
+      if (/indentationerror/i.test(text)) hints.push('Fix indentation: use consistent spaces (typically 4).');
+      if (/nameerror: name 'print' is not defined/i.test(text)) hints.push('Use print("text") in Python 3.');
+      if (hints.length === 0 && /traceback/i.test(text)) hints.push('Follow the traceback: fix the line mentioned at the bottom first.');
+    }
+    return hints;
+  };
+
+  const validateHtml = (source) => {
+    const hints = [];
+    const hasHtmlOpen = /<html[^>]*>/i.test(source);
+    const hasHtmlClose = /<\/html>/i.test(source);
+    const hasBodyOpen = /<body[^>]*>/i.test(source);
+    const hasBodyClose = /<\/body>/i.test(source);
+    if (hasBodyOpen && !hasBodyClose) hints.push('Missing closing </body> tag. Add </body> before </html>.');
+    if (hasHtmlOpen && !hasHtmlClose) hints.push('Missing closing </html> tag at the end of the document.');
+    if (!hasHtmlOpen) hints.push('Add <!DOCTYPE html> and <html> ... </html> document wrapper.');
+    return hints;
   };
 
   const clearCode = () => {
@@ -210,6 +235,16 @@ print("Try editing this code!")`;
           )}
         </ul>
       </div>
+      {debugHints.length > 0 && (
+        <div className="debug-hints">
+          <h4>🔎 Debug hints</h4>
+          <ul>
+            {debugHints.map((h, i) => (
+              <li key={i}>{h}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

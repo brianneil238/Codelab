@@ -112,7 +112,7 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
               <div className="feature-icon">📝</div>
               <h3>Code Editor</h3>
               <p>Write and test your code in our integrated editor</p>
-              <button className="feature-btn">Start Coding</button>
+              <button className="feature-btn" onClick={() => onCourseSelect('EDITOR')}>Start Coding</button>
             </div>
 
             <div className="feature-card">
@@ -123,10 +123,10 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
             </div>
 
             <div className="feature-card">
-              <div className="feature-icon">📊</div>
-              <h3>Progress</h3>
-              <p>Track your learning progress across all languages</p>
-              <button className="feature-btn">View Progress</button>
+              <div className="feature-icon">🏅</div>
+              <h3>Achievements</h3>
+              <p>View badges, milestones, and perfect-try quiz awards</p>
+              <button className="feature-btn" onClick={() => onCourseSelect('ACHIEVEMENTS')}>View Achievements</button>
             </div>
           </div>
 
