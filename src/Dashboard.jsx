@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { useProgress } from './ProgressContext';
 
 function Dashboard({ user, onLogout, onCourseSelect }) {
-  const { getCourseProgress, getOverallProgress, getStreak } = useProgress();
+  const { getCourseProgress, getOverallProgress, getStreak, isLoading } = useProgress();
   
   const overallProgress = getOverallProgress();
   const streak = getStreak();
@@ -47,18 +47,22 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
 
           <div className="progress-overview">
             <h3>Your Learning Progress</h3>
-            <div className="overall-progress">
-              <div className="progress-info">
-                <span className="progress-label">Overall Progress</span>
-                <span className="progress-percentage">{overallProgress}%</span>
+            {isLoading ? (
+              <div className="loading-message">Loading your progress...</div>
+            ) : (
+              <div className="overall-progress">
+                <div className="progress-info">
+                  <span className="progress-label">Overall Progress</span>
+                  <span className="progress-percentage">{overallProgress}%</span>
+                </div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${overallProgress}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
-                  style={{ width: `${overallProgress}%` }}
-                ></div>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="features-grid">

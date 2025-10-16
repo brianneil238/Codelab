@@ -263,6 +263,13 @@
   font-weight: 600;
 }
 
+.loading-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 20px;
+}
+
 .overall-progress {
   display: flex;
   flex-direction: column;

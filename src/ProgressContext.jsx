@@ -97,11 +97,13 @@ export const ProgressProvider = ({ children, user }) => {
         console.log('Converted progress:', convertedProgress);
         setProgress(convertedProgress);
         
-        // Update course progress
-        const courses = ['HTML', 'C++', 'Python'];
-        courses.forEach(course => {
-          updateCourseProgress(course, convertedProgress);
-        });
+        // Update course progress after setting the progress state
+        setTimeout(() => {
+          const courses = ['HTML', 'C++', 'Python'];
+          courses.forEach(course => {
+            updateCourseProgress(course);
+          });
+        }, 100);
       } else {
         console.error('Failed to load progress, status:', response.status);
         // Fallback to localStorage if backend fails
@@ -244,6 +246,17 @@ export const ProgressProvider = ({ children, user }) => {
       const totalItems = courseLectures.length + courseQuizzes.length;
       const completedItems = completedLectures + completedQuizzes;
       const coursePercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+      
+      console.log(`Updating ${course} progress:`, {
+        courseLectures,
+        courseQuizzes,
+        completedLectures,
+        completedQuizzes,
+        totalItems,
+        completedItems,
+        coursePercentage,
+        lectures: data.lectures
+      });
       
       return {
         ...prev,
