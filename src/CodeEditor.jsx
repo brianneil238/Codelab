@@ -48,11 +48,13 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language, code })
       });
+      const contentType = response.headers.get('content-type') || '';
       let data;
-      try {
+      if (contentType.includes('application/json')) {
         data = await response.json();
-      } catch (e) {
-        throw new Error('Could not read response from code runner. Please try again in a moment.');
+      } else {
+        const textBody = await response.text();
+        data = { error: textBody || `Server returned status ${response.status}` };
       }
       if (!response.ok) {
         const text = data?.error || 'Failed to run code';
