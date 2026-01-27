@@ -144,14 +144,16 @@ function Dashboard({ user, onLogout, onCourseSelect }) {
               <div className="feature-icon">🏆</div>
               <h3>Challenges</h3>
               <p>Test your skills with programming challenges</p>
-              <button className="feature-btn">Take Challenge</button>
+              <button className="feature-btn" onClick={() => onCourseSelect('CHALLENGES')}>
+                Take Challenge
+              </button>
             </div>
 
             <div className="feature-card">
               <div className="feature-icon">🏅</div>
               <h3>Achievements</h3>
               <p>View your badges, milestones, and learning streaks</p>
-              <button className="feature-btn">
+              <button className="feature-btn" onClick={() => onCourseSelect('ACHIEVEMENTS')}>
                 View Achievements
               </button>
             </div>

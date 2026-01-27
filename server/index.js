@@ -462,7 +462,7 @@ const getLatestVersion = async (language) => {
 
 app.post('/run', async (req, res) => {
   try {
-    const { language, code } = req.body || {};
+    const { language, code, testInput } = req.body || {};
     if (!language || typeof code !== 'string') {
       return res.status(400).json({ error: 'language and code are required' });
     }
@@ -474,7 +474,8 @@ app.post('/run', async (req, res) => {
     const payload = {
       language: langId,
       version,
-      files: [{ name: `main.${langId === 'python' ? 'py' : (langId === 'cpp' ? 'cpp' : 'txt')}`, content: code }]
+      files: [{ name: `main.${langId === 'python' ? 'py' : (langId === 'cpp' ? 'cpp' : 'txt')}`, content: code }],
+      stdin: typeof testInput === 'string' ? testInput : undefined
     };
     const execResp = await fetch(`${PISTON_BASE}/execute`, {
       method: 'POST',

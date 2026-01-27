@@ -4,6 +4,7 @@ import Dashboard from './Dashboard';
 import CourseLecture from './CourseLecture';
 import EditorWorkspace from './EditorWorkspace';
 import Achievements from './Achievements';
+import Challenges from './Challenges';
 import { ProgressProvider } from './ProgressContext';
 // BSU logo removed from login page header per request
 // import logo from './assets/batangas_state_u_logo.png';
@@ -191,13 +192,20 @@ function App() {
         </ProgressProvider>
       );
     }
+    if (currentCourse === 'CHALLENGES') {
+      return (
+        <ProgressProvider user={user}>
+          <Challenges onBack={handleBackToDashboard} />
+        </ProgressProvider>
+      );
+    }
     if (currentCourse === 'ACHIEVEMENTS') {
       return (
         <ProgressProvider user={user}>
           <div style={{ padding: '1rem' }}>
             <button className="logout-btn" onClick={handleBackToDashboard}>← Back</button>
             <h2 style={{ marginTop: '1rem' }}>Achievements</h2>
-            <Achievements />
+            <Achievements baseUrl={baseUrl} user={user} />
           </div>
         </ProgressProvider>
       );
