@@ -114,7 +114,8 @@ function App() {
       } else {
         // Check if it's a "user already exists" error during signup
         if (!isLogin && data.message && data.message.toLowerCase().includes('already exists')) {
-          setNotificationMessage(`This email is already registered! You can use ${formData.email} to log in instead.`);
+          // Use backend message so we don't incorrectly blame just the email
+          setNotificationMessage(data.message);
           setShowNotification(true);
           setMessage(''); // Clear the regular message
         } else {

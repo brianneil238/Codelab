@@ -130,12 +130,16 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ message: 'Please enter all fields' });
     }
 
-    // Check if user already exists
-    const existingUserQuery = 'SELECT * FROM users WHERE email = $1 OR username = $2';
-    const existingUser = await pool.query(existingUserQuery, [email, username]);
-    
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ message: 'User with this email or username already exists' });
+    // Check if email already exists
+    const existingEmail = await pool.query('SELECT 1 FROM users WHERE email = $1', [email]);
+    if (existingEmail.rows.length > 0) {
+      return res.status(400).json({ message: 'A user with this email already exists. Please log in instead.' });
+    }
+
+    // Check if username already exists
+    const existingUsername = await pool.query('SELECT 1 FROM users WHERE username = $1', [username]);
+    if (existingUsername.rows.length > 0) {
+      return res.status(400).json({ message: 'This username is already taken. Please choose a different username.' });
     }
 
     // Hash password

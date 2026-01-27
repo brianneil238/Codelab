@@ -7,6 +7,11 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
   const [isRunning, setIsRunning] = useState(false);
   const [debugHints, setDebugHints] = useState([]);
 
+  // Use same API base URL logic as the rest of the app
+  const API_URL = import.meta.env.VITE_API_URL || '';
+  const useAbsolute = API_URL && !API_URL.includes('localhost');
+  const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
+
   useEffect(() => {
     setCode(initialCode || '');
   }, [initialCode]);
@@ -37,12 +42,18 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
         return;
       }
 
-      const response = await fetch('/run', {
+      const endpoint = `${baseUrl}/run`;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language, code })
       });
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        throw new Error('Could not read response from code runner. Please try again in a moment.');
+      }
       if (!response.ok) {
         const text = data?.error || 'Failed to run code';
         setOutput(text);
