@@ -20,6 +20,7 @@ let userStreaks = null;
 let userAchievements = null;
 let userStats = null;
 let announcements = null;
+let teacherNotes = null;
 
 async function connectDb() {
   if (!MONGODB_URI) {
@@ -34,6 +35,7 @@ async function connectDb() {
   userAchievements = db.collection('user_achievements');
   userStats = db.collection('user_stats');
   announcements = db.collection('announcements');
+  teacherNotes = db.collection('teacher_notes');
   await users.createIndex({ email: 1 }, { unique: true });
   await users.createIndex({ username: 1 }, { unique: true });
   await userProgress.createIndex(
@@ -46,6 +48,8 @@ async function connectDb() {
     { unique: true }
   );
   await userStats.createIndex({ user_id: 1 }, { unique: true });
+  await teacherNotes.createIndex({ student_id: 1 }, { unique: true });
+  await users.createIndex({ employee_number: 1 }, { unique: true, sparse: true });
   console.log('Connected to MongoDB');
 }
 
@@ -57,17 +61,21 @@ connectDb().catch((err) => {
 // Signup route
 app.post('/signup', async (req, res) => {
   try {
-    const { fullName, username, birthday, age, sex, grade, strand, section, address, email, password, role } = req.body;
+    const { fullName, username, contact, birthday, age, sex, grade, strand, section, address, email, password, role, employeeNumber } = req.body;
 
     const normalizedRole = (role || 'student').toLowerCase() === 'teacher' ? 'teacher' : 'student';
 
-    // Teachers only need: fullName, username, email, password. Rest optional.
+    // Teachers only need: fullName, username, email, password, employee number (7 digits). Rest optional.
     if (normalizedRole === 'teacher') {
       if (!fullName || !username || !email || !password) {
         return res.status(400).json({ message: 'Please enter full name, username, email, and password' });
       }
+      const rawEmp = (employeeNumber || '').toString().replace(/\D/g, '');
+      if (!rawEmp || rawEmp.length !== 7) {
+        return res.status(400).json({ message: 'Employee number must be exactly 7 digits.' });
+      }
     } else {
-      if (!fullName || !username || !birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password) {
+      if (!fullName || !username || !birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
         return res.status(400).json({ message: 'Please enter all fields' });
       }
     }
@@ -84,6 +92,11 @@ app.post('/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const normalizedContact = contact ? String(contact).trim() : '';
+    const normalizedEmployeeNumber = normalizedRole === 'teacher'
+      ? (employeeNumber ? employeeNumber.toString().replace(/\D/g, '').slice(0, 7) : '')
+      : '';
+
     const doc = {
       full_name: fullName,
       username,
@@ -94,6 +107,8 @@ app.post('/signup', async (req, res) => {
       strand: normalizedRole === 'teacher' ? (strand || '') : strand,
       section: normalizedRole === 'teacher' ? (section || '') : section,
       address: normalizedRole === 'teacher' ? (address || '') : address,
+      contact: normalizedRole === 'teacher' ? '' : normalizedContact,
+      employee_number: normalizedRole === 'teacher' ? normalizedEmployeeNumber : '',
       email,
       password: hashedPassword,
       role: normalizedRole,
@@ -156,6 +171,8 @@ app.post('/login', async (req, res) => {
         grade: user.grade || '',
         strand: user.strand || '',
         section: user.section || '',
+        contact: user.contact || '',
+        employeeNumber: user.employee_number || '',
       },
     });
   } catch (error) {
@@ -181,6 +198,7 @@ app.patch('/users/:userId/profile', async (req, res) => {
       strand,
       section,
       email,
+      contact,
     } = body;
     if (!userId) {
       return res.status(400).json({ message: 'User ID required' });
@@ -209,6 +227,7 @@ app.patch('/users/:userId/profile', async (req, res) => {
     if (age !== undefined) update.age = age !== '' && age != null ? Number(age) : null;
     if (typeof sex === 'string') update.sex = sex;
     if (typeof address === 'string') update.address = address;
+    if (typeof contact === 'string') update.contact = contact;
     if (typeof grade === 'string') update.grade = grade;
     if (typeof strand === 'string') update.strand = strand;
     if (typeof section === 'string') update.section = section;
@@ -240,6 +259,7 @@ app.patch('/users/:userId/profile', async (req, res) => {
         grade: u.grade || '',
         strand: u.strand || '',
         section: u.section || '',
+        contact: u.contact || '',
       },
     });
   } catch (error) {
@@ -644,10 +664,83 @@ app.get('/teacher/export-progress', async (req, res) => {
 });
 
 // Announcements: list (for students) and create (for teacher)
+app.get('/teacher/announcements', async (req, res) => {
+  try {
+    if (!announcements) {
+      return res.status(503).json({ message: 'Announcements not available. Ensure the server has restarted after the latest update.' });
+    }
+    const list = await announcements
+      .find({})
+      .sort({ pinned: -1, publish_at: -1, created_at: -1 })
+      .limit(50)
+      .toArray();
+    res.status(200).json({
+      announcements: list.map((a) => ({
+        id: a._id.toString(),
+        text: a.text,
+        created_at: a.created_at,
+        pinned: !!a.pinned,
+        publish_at: a.publish_at || null,
+        target: a.target || null,
+      })),
+    });
+  } catch (error) {
+    console.error('Get teacher announcements error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/announcements', async (req, res) => {
   try {
-    const list = await announcements.find({}).sort({ created_at: -1 }).limit(5).toArray();
-    res.status(200).json({ announcements: list.map((a) => ({ id: a._id.toString(), text: a.text, created_at: a.created_at })) });
+    const grade = req.query.grade ? String(req.query.grade) : '';
+    const strand = req.query.strand ? String(req.query.strand) : '';
+    const section = req.query.section ? String(req.query.section) : '';
+
+    const now = new Date();
+    const timeFilter = {
+      $or: [
+        { publish_at: { $exists: false } },
+        { publish_at: null },
+        { publish_at: { $lte: now } },
+      ],
+    };
+
+    // Targeting logic:
+    // - No target => visible to everyone
+    // - Target fields are treated as optional constraints:
+    //   If a target field exists, it must match the student's value.
+    //   If it doesn't exist, it's a wildcard.
+    const matchKey = (key, value) => (
+      value
+        ? { $or: [{ [`target.${key}`]: value }, { [`target.${key}`]: { $exists: false } }, { [`target.${key}`]: '' }, { [`target.${key}`]: null }] }
+        : { $or: [{ [`target.${key}`]: { $exists: false } }, { [`target.${key}`]: '' }, { [`target.${key}`]: null }] }
+    );
+    const audienceFilter = {
+      $or: [
+        { target: { $exists: false } },
+        { target: null },
+        { $and: [matchKey('grade', grade), matchKey('strand', strand), matchKey('section', section)] },
+      ],
+    };
+
+    const filter = { $and: [timeFilter, audienceFilter] };
+
+    const list = await announcements
+      .find(filter)
+      .sort({ pinned: -1, publish_at: -1, created_at: -1 })
+      .limit(10)
+      .toArray();
+
+    res.status(200).json({
+      announcements: list.map((a) => ({
+        id: a._id.toString(),
+        text: a.text,
+        created_at: a.created_at,
+        pinned: !!a.pinned,
+        publish_at: a.publish_at || null,
+        target: a.target || null,
+      })),
+    });
   } catch (error) {
     console.error('Get announcements error:', error);
     res.status(500).json({ error: error.message });
@@ -659,15 +752,33 @@ app.post('/announcements', async (req, res) => {
     if (!announcements) {
       return res.status(503).json({ message: 'Announcements not available. Ensure the server has restarted after the latest update.' });
     }
-    const { text } = req.body || {};
+    const { text, pinned, publish_at, target } = req.body || {};
     if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ message: 'Announcement text is required.' });
     }
+    const publishAt = publish_at ? new Date(publish_at) : null;
+    const safeTarget = target && typeof target === 'object'
+      ? {
+          ...(target.grade ? { grade: String(target.grade) } : {}),
+          ...(target.strand ? { strand: String(target.strand) } : {}),
+          ...(target.section ? { section: String(target.section) } : {}),
+        }
+      : null;
     const result = await announcements.insertOne({
       text: text.trim(),
       created_at: new Date(),
+      pinned: !!pinned,
+      publish_at: publishAt && !Number.isNaN(publishAt.getTime()) ? publishAt : null,
+      target: safeTarget && Object.keys(safeTarget).length > 0 ? safeTarget : null,
     });
-    res.status(201).json({ id: result.insertedId.toString(), text: text.trim(), created_at: new Date() });
+    res.status(201).json({
+      id: result.insertedId.toString(),
+      text: text.trim(),
+      created_at: new Date(),
+      pinned: !!pinned,
+      publish_at: publishAt && !Number.isNaN(publishAt.getTime()) ? publishAt : null,
+      target: safeTarget && Object.keys(safeTarget).length > 0 ? safeTarget : null,
+    });
   } catch (error) {
     console.error('Post announcement error:', error);
     res.status(500).json({ error: error.message });
@@ -681,20 +792,44 @@ app.patch('/announcements/:id', async (req, res) => {
       return res.status(503).json({ message: 'Announcements not available. Ensure the server has restarted after the latest update.' });
     }
     const { id } = req.params;
-    const { text } = req.body || {};
+    const { text, pinned, publish_at, target } = req.body || {};
     if (!id) return res.status(400).json({ message: 'Missing announcement id.' });
-    if (!text || typeof text !== 'string' || !text.trim()) {
-      return res.status(400).json({ message: 'Announcement text is required.' });
+    const set = {};
+    if (typeof text === 'string' && text.trim()) set.text = text.trim();
+    if (typeof pinned === 'boolean') set.pinned = pinned;
+    if (publish_at !== undefined) {
+      const d = publish_at ? new Date(publish_at) : null;
+      set.publish_at = d && !Number.isNaN(d.getTime()) ? d : null;
+    }
+    if (target !== undefined) {
+      const safeTarget = target && typeof target === 'object'
+        ? {
+            ...(target.grade ? { grade: String(target.grade) } : {}),
+            ...(target.strand ? { strand: String(target.strand) } : {}),
+            ...(target.section ? { section: String(target.section) } : {}),
+          }
+        : null;
+      set.target = safeTarget && Object.keys(safeTarget).length > 0 ? safeTarget : null;
+    }
+    if (Object.keys(set).length === 0) {
+      return res.status(400).json({ message: 'Nothing to update.' });
     }
     const _id = new ObjectId(id);
     const updated = await announcements.findOneAndUpdate(
       { _id },
-      { $set: { text: text.trim() } },
+      { $set: set },
       { returnDocument: 'after' },
     );
     const doc = updated && updated.value ? updated.value : null;
     if (!doc) return res.status(404).json({ message: 'Announcement not found.' });
-    res.status(200).json({ id: doc._id.toString(), text: doc.text, created_at: doc.created_at });
+    res.status(200).json({
+      id: doc._id.toString(),
+      text: doc.text,
+      created_at: doc.created_at,
+      pinned: !!doc.pinned,
+      publish_at: doc.publish_at || null,
+      target: doc.target || null,
+    });
   } catch (error) {
     console.error('Edit announcement error:', error);
     res.status(500).json({ error: error.message });
@@ -715,6 +850,40 @@ app.delete('/announcements/:id', async (req, res) => {
     res.status(200).json({ ok: true });
   } catch (error) {
     console.error('Delete announcement error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Teacher notes per student (simple, single note per student)
+app.get('/teacher/notes/:studentId', async (req, res) => {
+  try {
+    if (!teacherNotes) return res.status(503).json({ message: 'Notes not available. Ensure the server has restarted.' });
+    const { studentId } = req.params;
+    if (!studentId) return res.status(400).json({ message: 'Missing student id.' });
+    const doc = await teacherNotes.findOne({ student_id: studentId });
+    res.status(200).json({ studentId, text: doc?.text || '', updated_at: doc?.updated_at || null });
+  } catch (error) {
+    console.error('Get teacher note error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/teacher/notes/:studentId', async (req, res) => {
+  try {
+    if (!teacherNotes) return res.status(503).json({ message: 'Notes not available. Ensure the server has restarted.' });
+    const { studentId } = req.params;
+    const { text } = req.body || {};
+    if (!studentId) return res.status(400).json({ message: 'Missing student id.' });
+    if (text != null && typeof text !== 'string') return res.status(400).json({ message: 'Invalid note text.' });
+    const payload = { text: (text || '').slice(0, 4000), updated_at: new Date() };
+    await teacherNotes.updateOne(
+      { student_id: studentId },
+      { $set: payload, $setOnInsert: { student_id: studentId, created_at: new Date() } },
+      { upsert: true },
+    );
+    res.status(200).json({ studentId, ...payload });
+  } catch (error) {
+    console.error('Save teacher note error:', error);
     res.status(500).json({ error: error.message });
   }
 });

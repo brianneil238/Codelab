@@ -24,10 +24,20 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const [refreshKey, setRefreshKey] = useState(0);
   const [announcements, setAnnouncements] = useState([]);
   const [announcementText, setAnnouncementText] = useState('');
+  const [announcementPinned, setAnnouncementPinned] = useState(false);
+  const [announcementPublishAt, setAnnouncementPublishAt] = useState(''); // datetime-local string
+  const [announcementTargetGrade, setAnnouncementTargetGrade] = useState('');
+  const [announcementTargetStrand, setAnnouncementTargetStrand] = useState('');
+  const [announcementTargetSection, setAnnouncementTargetSection] = useState('');
   const [announcementSending, setAnnouncementSending] = useState(false);
   const [announcementError, setAnnouncementError] = useState('');
   const [announcementEditingId, setAnnouncementEditingId] = useState(null);
   const [announcementEditingText, setAnnouncementEditingText] = useState('');
+  const [announcementEditingPinned, setAnnouncementEditingPinned] = useState(false);
+  const [announcementEditingPublishAt, setAnnouncementEditingPublishAt] = useState(''); // datetime-local string
+  const [announcementEditingTargetGrade, setAnnouncementEditingTargetGrade] = useState('');
+  const [announcementEditingTargetStrand, setAnnouncementEditingTargetStrand] = useState('');
+  const [announcementEditingTargetSection, setAnnouncementEditingTargetSection] = useState('');
   const [announcementEditingSaving, setAnnouncementEditingSaving] = useState(false);
   const [announcementDeletingId, setAnnouncementDeletingId] = useState(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -60,6 +70,14 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
 
   const baseUrl = baseUrlProp ?? (import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com'));
 
+  const toDatetimeLocal = (d) => {
+    if (!d) return '';
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '';
+    const tz = dt.getTimezoneOffset() * 60000;
+    return new Date(dt.getTime() - tz).toISOString().slice(0, 16);
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowProfileDropdown(false);
@@ -67,6 +85,18 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (announcementTargetGrade && !['11', '12'].includes(String(announcementTargetGrade))) {
+      setAnnouncementTargetStrand('');
+    }
+  }, [announcementTargetGrade]);
+
+  useEffect(() => {
+    if (announcementEditingTargetGrade && !['11', '12'].includes(String(announcementEditingTargetGrade))) {
+      setAnnouncementEditingTargetStrand('');
+    }
+  }, [announcementEditingTargetGrade]);
 
   const openProfileModal = () => {
     setShowProfileDropdown(false);
@@ -218,10 +248,18 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     };
     const loadAnnouncements = async () => {
       try {
-        const resp = await fetch(`${baseUrl}/announcements`);
+        const resp = await fetch(`${baseUrl}/teacher/announcements`);
         if (resp.ok) {
           const data = await resp.json();
           setAnnouncements(data.announcements || []);
+        } else {
+          const data = await resp.json().catch(() => ({}));
+          setAnnouncements([]);
+          if (resp.status === 404) {
+            setAnnouncementError('Announcements endpoint not found (404). Restart the backend server (port 5000) to load the latest announcement features.');
+          } else {
+            setAnnouncementError(data.message || data.error || `Failed to load announcements (${resp.status}).`);
+          }
         }
       } catch {
         setAnnouncements([]);
@@ -579,15 +617,38 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     setAnnouncementSending(true);
     setAnnouncementError('');
     try {
+      const target = {
+        ...(announcementTargetGrade ? { grade: String(announcementTargetGrade) } : {}),
+        ...(announcementTargetStrand ? { strand: String(announcementTargetStrand) } : {}),
+        ...(announcementTargetSection ? { section: String(announcementTargetSection) } : {}),
+      };
+      const publish_at = announcementPublishAt ? new Date(announcementPublishAt).toISOString() : null;
       const resp = await fetch(`${baseUrl}/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          pinned: !!announcementPinned,
+          publish_at,
+          target: Object.keys(target).length ? target : null,
+        }),
       });
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) {
         setAnnouncementText('');
-        setAnnouncements((prev) => [{ id: data.id, text: data.text, created_at: data.created_at }, ...prev]);
+        setAnnouncementPinned(false);
+        setAnnouncementPublishAt('');
+        setAnnouncementTargetGrade('');
+        setAnnouncementTargetStrand('');
+        setAnnouncementTargetSection('');
+        setAnnouncements((prev) => [{
+          id: data.id,
+          text: data.text,
+          created_at: data.created_at,
+          pinned: !!data.pinned,
+          publish_at: data.publish_at || null,
+          target: data.target || null,
+        }, ...prev]);
       } else {
         setAnnouncementError(data.message || data.error || `Failed to post (${resp.status}). Restart the server if you just added announcements.`);
       }
@@ -601,11 +662,21 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const startEditAnnouncement = (a) => {
     setAnnouncementEditingId(a.id);
     setAnnouncementEditingText(a.text || '');
+    setAnnouncementEditingPinned(!!a.pinned);
+    setAnnouncementEditingPublishAt(toDatetimeLocal(a.publish_at));
+    setAnnouncementEditingTargetGrade(a?.target?.grade ? String(a.target.grade) : '');
+    setAnnouncementEditingTargetStrand(a?.target?.strand ? String(a.target.strand) : '');
+    setAnnouncementEditingTargetSection(a?.target?.section ? String(a.target.section) : '');
     setAnnouncementError('');
   };
   const cancelEditAnnouncement = () => {
     setAnnouncementEditingId(null);
     setAnnouncementEditingText('');
+    setAnnouncementEditingPinned(false);
+    setAnnouncementEditingPublishAt('');
+    setAnnouncementEditingTargetGrade('');
+    setAnnouncementEditingTargetStrand('');
+    setAnnouncementEditingTargetSection('');
   };
   const saveEditAnnouncement = async () => {
     const text = announcementEditingText.trim();
@@ -613,10 +684,21 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     setAnnouncementEditingSaving(true);
     setAnnouncementError('');
     try {
+      const target = {
+        ...(announcementEditingTargetGrade ? { grade: String(announcementEditingTargetGrade) } : {}),
+        ...(announcementEditingTargetStrand ? { strand: String(announcementEditingTargetStrand) } : {}),
+        ...(announcementEditingTargetSection ? { section: String(announcementEditingTargetSection) } : {}),
+      };
+      const publish_at = announcementEditingPublishAt ? new Date(announcementEditingPublishAt).toISOString() : null;
       const resp = await fetch(`${baseUrl}/announcements/${announcementEditingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          pinned: !!announcementEditingPinned,
+          publish_at,
+          target: Object.keys(target).length ? target : null,
+        }),
       });
       const contentType = resp.headers.get('content-type') || '';
       const data = contentType.includes('application/json')
@@ -628,7 +710,11 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         }
         throw new Error(data.message || data.error || `Failed to edit (${resp.status}).`);
       }
-      setAnnouncements((prev) => prev.map((x) => (x.id === announcementEditingId ? { ...x, text: data.text } : x)));
+      setAnnouncements((prev) => prev.map((x) => (
+        x.id === announcementEditingId
+          ? { ...x, text: data.text, pinned: !!data.pinned, publish_at: data.publish_at || null, target: data.target || null }
+          : x
+      )));
       cancelEditAnnouncement();
     } catch (e) {
       setAnnouncementError(e.message || 'Failed to edit announcement.');
@@ -1074,7 +1160,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                     <p className="teacher-empty">No students found for this list.</p>
                   ) : (
                     <div className="teacher-attention-table-wrap">
-                      <table className="teacher-attention-table">
+                      <table className="teacher-attention-table teacher-attention-table-attention">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -1153,7 +1239,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                     <p className="teacher-empty">No students found for this list.</p>
                   ) : (
                     <div className="teacher-attention-table-wrap">
-                      <table className="teacher-attention-table">
+                      <table className="teacher-attention-table teacher-attention-table-completion">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -1253,7 +1339,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                     <p className="teacher-empty">No students match your search/filters.</p>
                   ) : (
                     <div className="teacher-attention-table-wrap">
-                      <table className="teacher-attention-table">
+                      <table className="teacher-attention-table teacher-attention-table-students teacher-attention-table-has-action">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -1492,6 +1578,64 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 rows={3}
                 disabled={announcementSending}
               />
+              <div className="teacher-announcement-controls">
+                <label className="teacher-announcement-check">
+                  <input
+                    type="checkbox"
+                    checked={announcementPinned}
+                    onChange={(e) => setAnnouncementPinned(e.target.checked)}
+                    disabled={announcementSending}
+                  />
+                  <span>Pin</span>
+                </label>
+
+                <label className="teacher-announcement-field">
+                  <span className="teacher-announcement-field-label">Schedule</span>
+                  <input
+                    type="datetime-local"
+                    value={announcementPublishAt}
+                    onChange={(e) => setAnnouncementPublishAt(e.target.value)}
+                    className="teacher-announcement-input-control"
+                    disabled={announcementSending}
+                  />
+                </label>
+
+                <div className="teacher-announcement-targets">
+                  <span className="teacher-announcement-field-label">Target</span>
+                  <select
+                    value={announcementTargetGrade}
+                    onChange={(e) => setAnnouncementTargetGrade(e.target.value)}
+                    className="teacher-announcement-select"
+                    disabled={announcementSending}
+                    aria-label="Target grade"
+                  >
+                    <option value="">All grades</option>
+                    {GRADES.map((g) => (
+                      <option key={g} value={g}>Grade {g}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={announcementTargetStrand}
+                    onChange={(e) => setAnnouncementTargetStrand(e.target.value)}
+                    className="teacher-announcement-select"
+                    disabled={announcementSending || (announcementTargetGrade && !['11', '12'].includes(String(announcementTargetGrade)))}
+                    aria-label="Target strand"
+                  >
+                    <option value="">All strands</option>
+                    {STRANDS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={announcementTargetSection}
+                    onChange={(e) => setAnnouncementTargetSection(e.target.value)}
+                    className="teacher-announcement-input-control teacher-announcement-section"
+                    placeholder="Section (optional)"
+                    disabled={announcementSending}
+                    aria-label="Target section"
+                  />
+                </div>
+              </div>
               <button type="button" className="teacher-announcement-btn" onClick={handlePostAnnouncement} disabled={!announcementText.trim() || announcementSending}>
                 {announcementSending ? 'Posting…' : 'Post announcement'}
               </button>
@@ -1505,18 +1649,91 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                   <li key={a.id} className="teacher-announcement-item">
                     <div className="teacher-announcement-main">
                       {announcementEditingId === a.id ? (
-                        <textarea
-                          value={announcementEditingText}
-                          onChange={(e) => setAnnouncementEditingText(e.target.value)}
-                          className="teacher-announcement-edit-input"
-                          rows={3}
-                          disabled={announcementEditingSaving}
-                        />
+                        <div className="teacher-announcement-edit-block">
+                          <textarea
+                            value={announcementEditingText}
+                            onChange={(e) => setAnnouncementEditingText(e.target.value)}
+                            className="teacher-announcement-edit-input"
+                            rows={3}
+                            disabled={announcementEditingSaving}
+                          />
+                          <div className="teacher-announcement-controls teacher-announcement-controls-compact">
+                            <label className="teacher-announcement-check">
+                              <input
+                                type="checkbox"
+                                checked={announcementEditingPinned}
+                                onChange={(e) => setAnnouncementEditingPinned(e.target.checked)}
+                                disabled={announcementEditingSaving}
+                              />
+                              <span>Pin</span>
+                            </label>
+                            <label className="teacher-announcement-field">
+                              <span className="teacher-announcement-field-label">Schedule</span>
+                              <input
+                                type="datetime-local"
+                                value={announcementEditingPublishAt}
+                                onChange={(e) => setAnnouncementEditingPublishAt(e.target.value)}
+                                className="teacher-announcement-input-control"
+                                disabled={announcementEditingSaving}
+                              />
+                            </label>
+                            <div className="teacher-announcement-targets">
+                              <span className="teacher-announcement-field-label">Target</span>
+                              <select
+                                value={announcementEditingTargetGrade}
+                                onChange={(e) => setAnnouncementEditingTargetGrade(e.target.value)}
+                                className="teacher-announcement-select"
+                                disabled={announcementEditingSaving}
+                                aria-label="Edit target grade"
+                              >
+                                <option value="">All grades</option>
+                                {GRADES.map((g) => (
+                                  <option key={g} value={g}>Grade {g}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={announcementEditingTargetStrand}
+                                onChange={(e) => setAnnouncementEditingTargetStrand(e.target.value)}
+                                className="teacher-announcement-select"
+                                disabled={announcementEditingSaving || (announcementEditingTargetGrade && !['11', '12'].includes(String(announcementEditingTargetGrade)))}
+                                aria-label="Edit target strand"
+                              >
+                                <option value="">All strands</option>
+                                {STRANDS.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                              <input
+                                value={announcementEditingTargetSection}
+                                onChange={(e) => setAnnouncementEditingTargetSection(e.target.value)}
+                                className="teacher-announcement-input-control teacher-announcement-section"
+                                placeholder="Section (optional)"
+                                disabled={announcementEditingSaving}
+                                aria-label="Edit target section"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       ) : (
-                        <span className="teacher-announcement-text">{a.text}</span>
+                        <>
+                          <span className="teacher-announcement-text">{a.text}</span>
+                          <div className="teacher-announcement-badges">
+                            {a.pinned ? <span className="teacher-announcement-badge teacher-announcement-badge-pin">Pinned</span> : null}
+                            {a.publish_at ? (
+                              <span className="teacher-announcement-badge teacher-announcement-badge-time">
+                                {new Date(a.publish_at).getTime() > Date.now() ? 'Scheduled' : 'Published'}: {new Date(a.publish_at).toLocaleString()}
+                              </span>
+                            ) : null}
+                            {a.target ? (
+                              <span className="teacher-announcement-badge teacher-announcement-badge-target">
+                                Target: {a.target.grade ? `G${a.target.grade}` : 'All'}{a.target.strand ? ` · ${a.target.strand}` : ''}{a.target.section ? ` · ${a.target.section}` : ''}
+                              </span>
+                            ) : null}
+                          </div>
+                        </>
                       )}
                       <span className="teacher-announcement-date">
-                        {a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}
+                        {a.created_at ? `Created: ${new Date(a.created_at).toLocaleDateString()}` : ''}
                       </span>
                     </div>
                     <div className="teacher-announcement-actions">

@@ -159,4 +159,40 @@
   .editor-workspace-dark .editor-layout { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 768px) {
+  .toolbar-right {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .language-toggle {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .editor-workspace {
+    padding: 0.75rem;
+  }
+  .editor-toolbar {
+    padding: 0.65rem 0.75rem;
+  }
+  .btn-back {
+    width: 100%;
+    justify-content: center;
+  }
+  .toolbar-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .language-toggle {
+    width: 100%;
+  }
+  .toggle-btn {
+    flex: 1 1 140px;
+    text-align: center;
+  }
+}
 

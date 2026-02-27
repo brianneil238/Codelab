@@ -281,3 +281,39 @@
     max-width: 300px;
   }
 }
+
+@media (max-width: 480px) {
+  .lecture-header {
+    padding: 0.75rem 0;
+  }
+  .lecture-header-content {
+    padding: 0 0.75rem;
+  }
+  .lecture-container {
+    padding: 0 0.75rem;
+  }
+  .lecture-content {
+    padding: 1.1rem;
+  }
+  .lecture-info h1 {
+    font-size: 1.35rem;
+  }
+  .lecture-text h2 {
+    font-size: 1.4rem;
+  }
+  .lecture-text h3 {
+    font-size: 1.15rem;
+  }
+  .lecture-text p,
+  .lecture-text li {
+    font-size: 1rem;
+  }
+  .lecture-text pre {
+    padding: 1rem;
+    font-size: 0.9rem;
+  }
+  .back-btn {
+    width: 100%;
+    padding: 0.75rem 1rem;
+  }
+}

@@ -15,7 +15,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileForm, setProfileForm] = useState({
-    fullName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '',
+    fullName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '', contact: '',
   });
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -26,7 +26,15 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
 
   const loadAnnouncements = React.useCallback(() => {
     if (!baseUrl) return;
-    fetch(`${baseUrl}/announcements`)
+    const params = new URLSearchParams();
+    const grade = user?.grade && user.grade !== 'N/A' ? String(user.grade) : '';
+    const strand = user?.strand && user.strand !== 'N/A' ? String(user.strand) : '';
+    const section = user?.section && user.section !== 'N/A' ? String(user.section) : '';
+    if (grade) params.set('grade', grade);
+    if (strand) params.set('strand', strand);
+    if (section) params.set('section', section);
+    const qs = params.toString();
+    fetch(`${baseUrl}/announcements${qs ? `?${qs}` : ''}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         const list = data?.announcements || [];
@@ -71,6 +79,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
       strand: user?.strand ?? '',
       section: user?.section ?? '',
       email: user?.email ?? '',
+      contact: user?.contact ?? '',
     });
   };
 
@@ -130,6 +139,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
         strand: profileForm.grade && ['11', '12'].includes(profileForm.grade) ? profileForm.strand : 'N/A',
         section: profileForm.section,
         email: profileForm.email.trim(),
+        contact: profileForm.contact ? profileForm.contact.trim() : '',
       };
       if (profileFile) {
         const base64 = await new Promise((resolve, reject) => {
@@ -302,6 +312,17 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
+                  </div>
+                  <div className="profile-form-field profile-form-field-full">
+                    <label className="profile-form-label">Contact number</label>
+                    <input
+                      type="tel"
+                      name="contact"
+                      value={profileForm.contact}
+                      onChange={handleProfileFormChange}
+                      className="profile-form-input"
+                      placeholder="e.g. 09XX‑XXX‑XXXX"
+                    />
                   </div>
                   <div className="profile-form-field profile-form-field-full">
                     <label className="profile-form-label">Address</label>

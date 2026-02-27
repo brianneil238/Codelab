@@ -20,6 +20,7 @@ function App() {
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
+    contact: '',
     birthday: '',
     age: '',
     sex: '',
@@ -29,7 +30,8 @@ function App() {
     address: '',
     email: '',
     password: '',
-    role: 'student'
+    role: 'student',
+    employeeNumber: '',
   });
   const [message, setMessage] = useState('');
   const [showNotification, setShowNotification] = useState(false);
@@ -119,6 +121,12 @@ function App() {
                 const role = userType === 'teacher' ? 'teacher' : 'student';
                 const payload = { ...formData, role };
                 if (role === 'student' && formData.grade && ['7', '8', '9', '10'].includes(formData.grade)) payload.strand = 'N/A';
+                if (role === 'teacher') {
+                  if (formData.employeeNumber) {
+                    const digits = String(formData.employeeNumber).replace(/\D/g, '').slice(0, 7);
+                    payload.employeeNumber = digits;
+                  }
+                }
                 return payload;
               })()
         ),
@@ -185,6 +193,9 @@ function App() {
     setFormData(prev => {
       const next = { ...prev, [name]: value };
       if (name === 'grade' && ['7', '8', '9', '10'].includes(value)) next.strand = '';
+      if (name === 'employeeNumber') {
+        next.employeeNumber = value.replace(/\D/g, '').slice(0, 7);
+      }
       return next;
     });
   };
@@ -247,6 +258,7 @@ function App() {
     setFormData({
       fullName: '',
       username: '',
+      contact: '',
       birthday: '',
       age: '',
       sex: '',
@@ -256,7 +268,8 @@ function App() {
       address: '',
       email: '',
       password: '',
-      role: 'student'
+      role: 'student',
+      employeeNumber: '',
     });
     setMessage('');
   };
@@ -449,6 +462,21 @@ function App() {
                     <input type="text" placeholder="Username" name="username" value={formData.username} onChange={handleInputChange} required />
                   </div>
                 </div>
+                <div className="form-row">
+                  <div className="input-group teacher-input">
+                    <i className="fas fa-id-badge"></i>
+                    <input
+                      type="text"
+                      placeholder="Employee number (7 digits)"
+                      name="employeeNumber"
+                      value={formData.employeeNumber}
+                      onChange={handleInputChange}
+                      inputMode="numeric"
+                      maxLength={7}
+                      required
+                    />
+                  </div>
+                </div>
                 <p className="form-section-title teacher-section-title teacher-optional">Teaching context (optional)</p>
                 <div className="teacher-signup-card">
                   <div className="form-row">
@@ -499,6 +527,19 @@ function App() {
                   <div className="input-group">
                     <i className="fas fa-at"></i>
                     <input type="text" placeholder="Username" name="username" value={formData.username} onChange={handleInputChange} required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="input-group">
+                    <i className="fas fa-phone"></i>
+                    <input
+                      type="tel"
+                      placeholder="Contact number"
+                      name="contact"
+                      value={formData.contact}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="form-row">
