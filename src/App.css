@@ -30,18 +30,109 @@
 
 .toast-success { background: #28a745; }
 
+.toast-achievement {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  padding: 14px 18px;
+  max-width: 90vw;
+  box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+}
+.toast-achievement::before {
+  content: '🏆 ';
+  margin-right: 6px;
+}
+
 @keyframes toastSlideIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Floating FAQ button */
+.faq-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: #4CAF50;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(76, 175, 80, 0.45);
+  z-index: 900;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.faq-fab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+}
+.faq-fab:active {
+  transform: scale(0.98);
+}
+.faq-fab-dark {
+  background: #2e7d32;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.faq-fab-dark:hover {
+  background: #388e3c;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.faq-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+.faq-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 85vh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+}
+.faq-modal-box .faq-page-modal {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.faq-modal-box .faq-page-modal .faq-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.5rem 1.75rem 2.5rem 1.75rem;
+  padding-right: 2rem;
+  scrollbar-gutter: stable;
+}
+.faq-modal-box-dark {
+  background: #1a1f1a;
+}
+
 .login-container {
   display: flex;
   background-color: #fff;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  width: 1000px; /* Increased width */
+  width: 1000px;
   max-width: 95%;
 }
 
@@ -98,24 +189,135 @@
   color: #7f8c8d;
 }
 
+.role-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+}
+
+.role-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.role-tab:hover {
+  color: #374151;
+  background: #e5e7eb;
+}
+
+.role-tab-active {
+  background: #fff;
+  color: #4CAF50;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.role-tab-active:hover {
+  background: #fff;
+  color: #43A047;
+}
+
+/* Teacher tab active uses blue accent */
+.role-tabs .role-tab.role-tab-active:last-child {
+  color: #2563eb;
+}
+.role-tabs .role-tab.role-tab-active:last-child:hover {
+  color: #1d4ed8;
+}
+
 h3 {
-  margin-bottom: 25px;
-  color: #333;
-  font-size: 1.8em;
+  margin-bottom: 24px;
+  color: #1a1a1a;
+  font-size: 1.75em;
+  font-weight: 700;
+}
+
+.form-section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 20px 0 10px 0;
+}
+.form-section-title:first-of-type {
+  margin-top: 0;
+}
+
+/* Teacher signup – different UI */
+.login-form-teacher .teacher-signup-ui {
+  margin-bottom: 0;
+}
+.login-form-teacher .teacher-section-title {
+  color: #4b5563;
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+.login-form-teacher .teacher-section-title:first-of-type {
+  margin-top: 0;
+}
+.login-form-teacher .teacher-section-title.teacher-optional {
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.teacher-signup-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+.login-form-teacher .teacher-input:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.login-form-teacher .sign-in-button {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+.login-form-teacher .sign-in-button:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+.login-form-teacher .forgot-password,
+.login-form-teacher .signup-link {
+  color: #2563eb;
+}
+.login-form-teacher .forgot-password:hover,
+.login-form-teacher .signup-link:hover {
+  color: #1d4ed8;
 }
 
 .input-group {
   display: flex;
   align-items: center;
   margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-group:focus-within {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
 }
 
 .input-group i {
-  color: #7f8c8d;
+  color: #9ca3af;
   margin-right: 10px;
+  font-size: 0.95rem;
 }
 
 .input-group input,
@@ -123,20 +325,57 @@ h3 {
   border: none;
   outline: none;
   flex-grow: 1;
-  padding: 3px 0;
-  font-size: 0.9em;
+  padding: 2px 0;
+  font-size: 0.95em;
   background: transparent;
+  color: #1a1a1a;
+}
+.input-group input::placeholder {
+  color: #9ca3af;
+}
+.input-group select {
+  color: #1a1a1a;
+  cursor: pointer;
 }
 
-.input-group select {
-  color: #333;
+.input-group-disabled {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+.input-group-disabled input {
+  color: #9ca3af;
+}
+
+.password-group {
+  position: relative;
+}
+
+.password-group input {
+  padding-right: 36px; /* space for eye icon */
+}
+
+.password-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  color: #7f8c8d;
+}
+
+.password-toggle .password-icon {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
 }
 
 .password-case-sensitive {
-  font-size: 0.85em;
-  color: #e74c3c; /* Red color for warning */
+  font-size: 0.8rem;
+  color: #6b7280;
   text-align: left;
-  margin-bottom: 20px;
+  margin: 4px 0 16px 0;
 }
 
 .form-message {
@@ -147,20 +386,29 @@ h3 {
 }
 
 .sign-in-button {
-  background-color: #4CAF50; /* Green color for the theme */
+  background-color: #4CAF50;
   color: #fff;
   border: none;
-  border-radius: 5px;
-  padding: 12px;
-  font-size: 1.1em;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 1.05rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
   width: 100%;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  margin-top: 8px;
 }
-
 .sign-in-button:hover {
   background-color: #43A047;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.35);
+}
+.sign-in-button:active {
+  transform: scale(0.99);
+}
+.sign-in-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .forgot-password, .signup-link {
@@ -180,6 +428,60 @@ h3 {
 
 .signup-text .signup-link {
   font-weight: bold;
+}
+
+.forgot-password {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #4CAF50;
+  text-decoration: none;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+.forgot-password-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.forgot-password-panel h4 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+/* Teacher checkbox block */
+.teacher-check-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f8faf8;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+}
+.teacher-check-wrap input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #4CAF50;
+  cursor: pointer;
+}
+.teacher-check-wrap label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #374151;
 }
 
 /* Two-column layout for signup form */
@@ -205,19 +507,32 @@ h3 {
 
 /* Mobile Responsive Design */
 @media (max-width: 768px) {
+  .login-page {
+    padding: 16px 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: flex-start;
+    padding-top: 24px;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
   .login-container {
-    width: 95%;
-    max-width: 95%;
-    margin: 20px auto; /* equal margins left/right */
+    width: 100%;
+    max-width: 100%;
+    margin: 0 12px;
+    border-radius: 14px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   }
   
   .login-form-section {
     flex-direction: column;
-    padding: 20px;
+    padding: 24px 20px;
+    width: 100%;
+    box-sizing: border-box;
   }
   
   .logo-section {
-    /* Hide the big logo on mobile to avoid overlap */
     display: none;
   }
   
@@ -228,32 +543,51 @@ h3 {
   
   .form-content {
     padding-left: 0;
-    padding-top: 20px;
+    padding-top: 0;
+    width: 100%;
+    max-width: 100%;
     position: relative;
-    z-index: 1; /* keep form above any overlapping elements */
+    z-index: 1;
+    box-sizing: border-box;
   }
   
   .university-bike-rental-header {
     justify-content: center;
-    margin-bottom: 15px;
+    margin-bottom: 16px;
   }
   
   .bike-rental-logo {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
   
   .university-bike-rental-text h2 {
-    font-size: 1.3em;
+    font-size: 1.35rem;
   }
   
   .university-bike-rental-text p {
-    font-size: 0.8em;
+    font-size: 0.85rem;
   }
   
   h3 {
-    font-size: 1.5em;
+    font-size: 1.4rem;
     margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .role-tabs {
+    margin-bottom: 18px;
+  }
+  .role-tab {
+    padding: 14px 16px;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+
+  .form-section-title {
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-size: 0.75rem;
   }
   
   .form-row {
@@ -261,9 +595,7 @@ h3 {
     gap: 0;
   }
 
-  /* Stack email above password on small screens */
   .auth-row {
-    display: flex;
     flex-direction: column;
   }
   .auth-row .input-group + .input-group {
@@ -273,64 +605,125 @@ h3 {
   .form-row .input-group {
     margin-bottom: 10px;
   }
+
+  .form-single .input-group {
+    margin-bottom: 10px;
+  }
   
   .input-group {
-    padding: 10px;
+    padding: 12px 14px;
+    min-height: 48px;
+    box-sizing: border-box;
   }
   
   .input-group input,
   .input-group select {
-    font-size: 1em;
+    font-size: 16px; /* prevents zoom on focus in iOS */
+    min-height: 24px;
   }
   
   .sign-in-button {
-    padding: 15px;
-    font-size: 1.1em;
+    padding: 16px;
+    font-size: 1.05rem;
+    min-height: 50px;
+    border-radius: 12px;
+  }
+
+  .teacher-check-wrap {
+    margin-top: 14px;
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+  .teacher-check-wrap input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  .teacher-check-wrap span {
+    font-size: 1rem;
+  }
+
+  .forgot-password-panel {
+    margin-top: 16px;
+    padding: 16px;
+  }
+  .forgot-password-panel .input-group {
+    margin-bottom: 10px;
+  }
+
+  .signup-text {
+    margin-top: 16px;
+    font-size: 0.9rem;
+    text-align: center;
   }
 }
 
 @media (max-width: 480px) {
   .login-page {
-    padding: 10px;
+    padding: 12px 0;
+    padding-top: 16px;
   }
   
   .login-container {
-    width: auto;            /* allow horizontal margins */
-    max-width: 100%;
-    margin: 12px 16px;      /* equal left/right margins */
-    border-radius: 10px;    /* keep card look on mobile */
+    margin: 0 10px;
+    border-radius: 12px;
   }
   
   .login-form-section {
-    padding: 15px;
+    padding: 20px 16px;
   }
-  
-  /* Keep logo hidden on small screens */
+
   .logo-section { display: none; }
   .bsu-logo { width: 0; height: 0; }
+
+  .university-bike-rental-header {
+    margin-bottom: 12px;
+  }
+  .university-bike-rental-text h2 {
+    font-size: 1.25rem;
+  }
+  .university-bike-rental-text p {
+    font-size: 0.8rem;
+  }
   
-  /* Keep form stacked and ensure spacing for smallest screens */
+  h3 {
+    font-size: 1.25rem;
+    margin-bottom: 16px;
+  }
+
+  .form-section-title {
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+  
   .auth-row {
     flex-direction: column;
   }
   .auth-row .input-group + .input-group {
     margin-top: 10px;
   }
-
-  .university-bike-rental-text h2 {
-    font-size: 1.2em;
-  }
-  
-  h3 {
-    font-size: 1.3em;
-  }
   
   .input-group {
-    padding: 12px;
+    padding: 12px 14px;
+    min-height: 46px;
+  }
+  
+  .input-group input,
+  .input-group select {
+    font-size: 16px;
   }
   
   .sign-in-button {
-    padding: 16px;
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+
+  .password-case-sensitive {
+    font-size: 0.75rem;
+    margin-bottom: 12px;
+  }
+
+  .forgot-password-panel {
+    padding: 14px;
   }
 }
 
@@ -464,4 +857,201 @@ h3 {
     width: 100%;
     padding: 12px;
   }
+}
+
+/* Achievements page (and Back button when not on Dashboard) */
+.logout-btn {
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s, transform 0.1s;
+}
+.logout-btn:hover {
+  background: #43A047;
+  transform: translateY(-1px);
+}
+
+.achievements-page {
+  background: #f0f9f0;
+  color: #333;
+}
+/* Achievements dark (same as dashboard / lecture dark theme) */
+.achievements-page-dark {
+  background: linear-gradient(135deg, #1a1f1a 0%, #0f130f 100%) !important;
+  color: #e5e7eb;
+}
+.achievements-page-dark .logout-btn {
+  background: #2d332d;
+  color: #81c784;
+  border: 1px solid #4CAF50;
+}
+.achievements-page-dark .logout-btn:hover {
+  background: #4CAF50;
+  color: #fff;
+}
+.achievements-page-dark h2 {
+  color: #81c784;
+}
+
+/* Achievements – compact layout, less scroll */
+.achievements-wrap {
+  max-width: 960px;
+  color: #333;
+}
+.achievements-wrap-dark {
+  color: #e5e7eb;
+}
+
+/* Your achievements first – compact grid */
+.achievements-earned {
+  margin-bottom: 1.5rem;
+}
+.achievements-earned-title {
+  font-size: 1.15rem;
+  color: #2e7d32;
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+.achievements-earned-title-dark {
+  color: #81c784;
+}
+.achievements-count {
+  font-weight: 400;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+.achievements-earned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 0.5rem;
+}
+.achievements-earned-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: #f0f9f0;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.achievements-earned-tile-dark {
+  background: #1a251a;
+  border-color: #2e7d32;
+}
+.achievements-earned-tile-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+.achievements-earned-tile-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* All achievements – dense grid (how to get = tooltip on hover) */
+.achievements-catalog {
+  margin-bottom: 1rem;
+}
+.achievements-catalog-title {
+  font-size: 1.15rem;
+  color: #2e7d32;
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+.achievements-catalog-title-dark {
+  color: #81c784;
+}
+.achievements-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+  gap: 0.5rem;
+}
+.achievements-catalog-grid-dark {
+  color: #e5e7eb;
+}
+.achievements-catalog-tile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: default;
+}
+.achievements-catalog-tile:hover {
+  border-color: #a5d6a7;
+  background: #fafafa;
+}
+.achievements-catalog-tile-earned {
+  border-color: #4CAF50;
+  background: #f0f9f0;
+}
+.achievements-catalog-tile-earned:hover {
+  background: #e8f5e9;
+}
+.achievements-wrap-dark .achievements-catalog-tile {
+  background: #1e231e;
+  border-color: #333;
+}
+.achievements-wrap-dark .achievements-catalog-tile:hover {
+  border-color: #404040;
+  background: #252925;
+}
+.achievements-wrap-dark .achievements-catalog-tile-earned {
+  border-color: #4CAF50;
+  background: #1a251a;
+}
+.achievements-wrap-dark .achievements-catalog-tile-earned:hover {
+  background: #1e2d1e;
+}
+.achievements-catalog-tile-icon {
+  flex-shrink: 0;
+  color: #9ca3af;
+  font-size: 1rem;
+}
+.achievements-catalog-tile-earned .achievements-catalog-tile-icon {
+  color: #4CAF50;
+  font-weight: bold;
+}
+.achievements-wrap-dark .achievements-catalog-tile-earned .achievements-catalog-tile-icon {
+  color: #81c784;
+}
+.achievements-catalog-tile-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.achievements-catalog-badge {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #2e7d32;
+  background: #c8e6c9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+.achievements-catalog-badge-dark {
+  color: #81c784;
+  background: rgba(76, 175, 80, 0.2);
+}
+.achievements-loading-dark,
+.achievements-empty-dark {
+  color: #9ca3af;
+}
+.achievements-empty {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9rem;
+  padding: 0.4rem 0;
 }

@@ -6,6 +6,40 @@
   overflow: hidden;
 }
 
+.editor-guide {
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 0 1.5rem 1rem 1.5rem;
+  margin-top: 1rem;
+}
+
+.editor-guide-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.05rem;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.editor-guide-intro {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.editor-guide-steps {
+  margin: 0;
+  padding-left: 1.35rem;
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+.editor-guide-steps li {
+  margin-bottom: 0.25rem;
+}
+
 .editor-header {
   background: #f8f9fa;
   padding: 1rem 1.5rem;
@@ -66,6 +100,10 @@
 .editor-container {
   display: flex;
   min-height: 400px;
+}
+
+.code-editor-html .editor-container {
+  min-height: 520px;
 }
 
 .code-section {
@@ -140,17 +178,72 @@
   position: relative;
 }
 
+/* HTML website preview – larger, browser-like */
 .html-preview {
   width: 100%;
   height: 100%;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
   border: none;
+  background: #e8e8e8;
+}
+
+.html-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(180deg, #f5f5f5 0%, #e8e8e8 100%);
+  border-bottom: 1px solid #ccc;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.html-preview-label {
+  font-weight: 500;
+}
+
+.html-preview-open-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #4CAF50;
+  background: #fff;
+  color: #4CAF50;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.html-preview-open-btn:hover {
+  background: #4CAF50;
+  color: #fff;
 }
 
 .preview-iframe {
+  flex: 1;
   width: 100%;
-  height: 100%;
+  min-height: 380px;
   border: none;
-  background: white;
+  background: #fff;
+  display: block;
+}
+
+.open-website-btn {
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #2e7d32;
+  background: transparent;
+  color: #2e7d32;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.open-website-btn:hover {
+  background: #2e7d32;
+  color: #fff;
 }
 
 .output-text {
@@ -205,6 +298,102 @@
   margin-bottom: 0.3rem;
 }
 
+/* Dark mode – code editor (same as dashboard / lecture dark theme) */
+.code-editor.code-editor-dark {
+  background: #1e231e !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.code-editor.code-editor-dark .editor-guide {
+  background: #1e231e !important;
+  border: 1px solid #333;
+}
+
+.code-editor.code-editor-dark .editor-guide-title { color: #81c784 !important; }
+.code-editor.code-editor-dark .editor-guide-intro,
+.code-editor.code-editor-dark .editor-guide-steps,
+.code-editor.code-editor-dark .editor-guide-steps li { color: #d1d5db !important; }
+
+.code-editor.code-editor-dark .editor-header {
+  background: #1e231e !important;
+  border-bottom: 1px solid #333;
+}
+
+.code-editor.code-editor-dark .editor-header h3 { color: #81c784 !important; }
+
+.code-editor.code-editor-dark .clear-btn,
+.code-editor.code-editor-dark .reset-btn {
+  background: #2d332d !important;
+  color: #81c784 !important;
+  border: 1px solid #4CAF50 !important;
+}
+
+.code-editor.code-editor-dark .clear-btn:hover,
+.code-editor.code-editor-dark .reset-btn:hover {
+  background: #4CAF50 !important;
+  color: #fff !important;
+}
+
+.code-editor.code-editor-dark .editor-container { border-color: #333; }
+.code-editor.code-editor-dark .code-section { border-right-color: #333; }
+.code-editor.code-editor-dark .code-header { background: #2d332d !important; }
+.code-editor.code-editor-dark .code-header .language-tag { background: #2e7d32; }
+.code-editor.code-editor-dark .line-count { color: #9ca3af !important; }
+.code-editor.code-editor-dark .code-textarea {
+  background: #2d332d !important;
+  color: #e5e7eb !important;
+}
+.code-editor.code-editor-dark .code-textarea::placeholder { color: #6b7280 !important; }
+
+.code-editor.code-editor-dark .output-header { background: #2d332d !important; border-color: #333; }
+.code-editor.code-editor-dark .output-label { color: #9ca3af !important; }
+.code-editor.code-editor-dark .output-content { background: #1e231e !important; }
+.code-editor.code-editor-dark .output-text { color: #e5e7eb !important; }
+.code-editor.code-editor-dark .output-placeholder { color: #9ca3af !important; }
+
+.code-editor.code-editor-dark .html-preview { background: #1e231e !important; }
+.code-editor.code-editor-dark .html-preview-bar {
+  background: #1e231e !important;
+  border-bottom: 1px solid #333;
+  color: #9ca3af !important;
+}
+.code-editor.code-editor-dark .html-preview-open-btn {
+  background: #2d332d !important;
+  color: #81c784 !important;
+  border: 1px solid #4CAF50;
+}
+.code-editor.code-editor-dark .html-preview-open-btn:hover {
+  background: #4CAF50 !important;
+  color: #fff !important;
+}
+.code-editor.code-editor-dark .preview-iframe { background: #1e231e; }
+
+.code-editor.code-editor-dark .open-website-btn {
+  background: transparent !important;
+  color: #81c784 !important;
+  border: 1px solid #4CAF50;
+}
+.code-editor.code-editor-dark .open-website-btn:hover {
+  background: #4CAF50 !important;
+  color: #fff !important;
+}
+
+.code-editor.code-editor-dark .editor-tips {
+  background: #2d332d !important;
+  border-top: 1px solid #333;
+}
+.code-editor.code-editor-dark .editor-tips h4 { color: #81c784 !important; }
+.code-editor.code-editor-dark .editor-tips ul,
+.code-editor.code-editor-dark .editor-tips li { color: #d1d5db !important; }
+
+.code-editor.code-editor-dark .debug-hints {
+  background: #2d332d !important;
+  border-top: 1px solid #404040;
+}
+.code-editor.code-editor-dark .debug-hints h4 { color: #81c784 !important; }
+.code-editor.code-editor-dark .debug-hints ul,
+.code-editor.code-editor-dark .debug-hints li { color: #d1d5db !important; }
+
 @media (max-width: 768px) {
   .editor-container {
     flex-direction: column;
@@ -215,6 +404,8 @@
     border-right: none;
     border-bottom: 1px solid #e9ecef;
   }
+  
+  .code-editor.code-editor-dark .code-section { border-bottom-color: #333; }
   
   .code-textarea {
     min-height: 200px;

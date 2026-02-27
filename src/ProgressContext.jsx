@@ -10,7 +10,7 @@ export const useProgress = () => {
   return context;
 };
 
-export const ProgressProvider = ({ children, user }) => {
+export const ProgressProvider = ({ children, user, onAchievementUnlocked }) => {
   const [progress, setProgress] = useState({
     lectures: {},
     quizzes: {},
@@ -21,28 +21,26 @@ export const ProgressProvider = ({ children, user }) => {
     longest_streak: 0,
     total_days_active: 0
   });
+  const [stats, setStats] = useState({
+    code_lines_written: 0,
+    challenges_completed: 0
+  });
   const [isLoading, setIsLoading] = useState(false);
 
-  // API base URL - Force use of Render backend for consistency
-  const API_URL = import.meta.env.VITE_API_URL || '';
-  const useAbsolute = API_URL && !API_URL.includes('localhost');
-  const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
+  // In dev, use /api so Vite proxies to localhost:5000. Otherwise use VITE_API_URL or Render URL.
+  const baseUrl = import.meta.env.DEV
+    ? '/api'
+    : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com');
   
-  console.log('ProgressContext - API_URL:', API_URL);
-  console.log('ProgressContext - useAbsolute:', useAbsolute);
   console.log('ProgressContext - baseUrl:', baseUrl);
 
-  // Load progress and streak from backend when user changes
+  // Load progress, streak, and stats from backend when user changes (database is source of truth)
   useEffect(() => {
     if (user?.id) {
       console.log('User logged in, loading progress for user ID:', user.id);
-      console.log('User object:', user);
-      
-      // First try to load from backend
       loadProgressFromBackend(user.id);
       loadStreakFromBackend(user.id);
-      
-      // Also sync any localStorage progress to backend
+      loadStatsFromBackend(user.id);
       syncLocalStorageToBackend(user.id);
     } else {
       console.log('No user ID available, skipping progress load');
@@ -73,9 +71,47 @@ export const ProgressProvider = ({ children, user }) => {
       if (response.ok) {
         const data = await response.json();
         if (data?.streak) setStreak(data.streak);
+        if (data?.achievementAwarded?.key && onAchievementUnlocked) {
+          onAchievementUnlocked(data.achievementAwarded.key);
+        }
       }
     } catch (error) {
       console.error('Error ticking streak:', error);
+    }
+  };
+
+  const loadStatsFromBackend = async (userId) => {
+    try {
+      const response = await fetch(`${baseUrl}/stats/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          code_lines_written: data.code_lines_written ?? 0,
+          challenges_completed: data.challenges_completed ?? 0
+        });
+      }
+    } catch (error) {
+      console.error('Error loading stats from backend:', error);
+    }
+  };
+
+  const addCodeLinesWritten = async (linesToAdd) => {
+    if (!user?.id || !linesToAdd || linesToAdd <= 0) return;
+    try {
+      const response = await fetch(`${baseUrl}/stats/${user.id}/lines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linesToAdd })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStats(prev => ({
+          ...prev,
+          code_lines_written: data.code_lines_written ?? prev.code_lines_written + linesToAdd
+        }));
+      }
+    } catch (error) {
+      console.error('Error adding code lines:', error);
     }
   };
 
@@ -109,26 +145,26 @@ export const ProgressProvider = ({ children, user }) => {
               progress: item.completed ? 100 : 0
             };
           } else if (item.type === 'quiz') {
+            const total = item.total && item.total > 0 ? item.total : 10;
             convertedProgress.quizzes[key] = {
               completed: item.completed,
-              score: item.score,
-              total: 10, // Assuming 10 questions per quiz
-              percentage: Math.round((item.score / 10) * 100),
-              passed: item.score >= 7, // Assuming 70% pass rate
+              score: item.score ?? 0,
+              total,
+              percentage: total > 0 ? Math.round((item.score / total) * 100) : 0,
+              passed: total > 0 && item.score >= Math.ceil(total * 0.7),
               completedAt: item.last_updated
             };
           }
         });
         
-        // If backend returned no records, keep existing/local progress instead of wiping it
         if (backendProgress.length === 0) {
-          console.log('No backend progress found; preserving local progress');
-          loadProgressFromLocalStorage();
+          console.log('No backend progress in database; trying user-specific local backup');
+          loadProgressFromLocalStorage(userId);
         } else {
-          console.log('Converted progress:', convertedProgress);
+          console.log('Loaded progress from database:', convertedProgress);
           setProgress(convertedProgress);
-          // Save to localStorage as backup
-          localStorage.setItem('codelab-progress', JSON.stringify(convertedProgress));
+          // Backup to user-specific localStorage
+          localStorage.setItem(`codelab-progress-${userId}`, JSON.stringify(convertedProgress));
         }
         
         // Update course progress after setting the progress state
@@ -140,37 +176,31 @@ export const ProgressProvider = ({ children, user }) => {
         }, 100);
       } else {
         console.error('Failed to load progress, status:', response.status);
-        // Fallback to localStorage if backend fails
-        loadProgressFromLocalStorage();
+        loadProgressFromLocalStorage(userId);
       }
     } catch (error) {
       console.error('Error loading progress from backend:', error);
-      
-      // Retry once if it's a network error and we haven't retried yet
       if (retryCount === 0 && error.name === 'TypeError') {
         console.log('Retrying progress load...');
         setTimeout(() => loadProgressFromBackend(userId, 1), 2000);
         return;
       }
-      
-      // Fallback to localStorage if backend fails
-      loadProgressFromLocalStorage();
+      loadProgressFromLocalStorage(userId);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fallback: Load progress from localStorage
-  const loadProgressFromLocalStorage = () => {
-    console.log('Loading progress from localStorage fallback');
-    const savedProgress = localStorage.getItem('codelab-progress');
+  // Fallback: Load progress from localStorage (user-specific key so we don't mix users)
+  const loadProgressFromLocalStorage = (userId) => {
+    const storageKey = userId ? `codelab-progress-${userId}` : 'codelab-progress';
+    console.log('Loading progress from localStorage:', storageKey);
+    const savedProgress = localStorage.getItem(storageKey);
     if (savedProgress) {
       try {
         const parsedProgress = JSON.parse(savedProgress);
         console.log('Loaded progress from localStorage:', parsedProgress);
         setProgress(parsedProgress);
-        
-        // Update course progress
         const courses = ['HTML', 'C++', 'Python'];
         courses.forEach(course => {
           updateCourseProgress(course);
@@ -179,35 +209,32 @@ export const ProgressProvider = ({ children, user }) => {
         console.error('Error parsing localStorage progress:', error);
       }
     } else {
-      console.log('No progress found in localStorage');
+      console.log('No progress found in localStorage for', userId || 'default');
     }
   };
 
-  // Sync localStorage progress to backend
+  // Sync this user's localStorage progress to backend (only user-specific key to avoid mixing users)
   const syncLocalStorageToBackend = async (userId) => {
-    const savedProgress = localStorage.getItem('codelab-progress');
-    if (savedProgress) {
-      try {
-        const parsedProgress = JSON.parse(savedProgress);
-        console.log('Syncing localStorage progress to backend:', parsedProgress);
-        
-        // Send each completed lecture/quiz to backend
-        Object.entries(parsedProgress.lectures).forEach(([key, lecture]) => {
-          if (lecture.completed) {
-            const [course, lectureId] = key.split('-');
-            saveProgressToBackend(userId, course, parseInt(lectureId), 'lecture', true);
-          }
-        });
-        
-        Object.entries(parsedProgress.quizzes).forEach(([key, quiz]) => {
-          if (quiz.completed) {
-            const [course, lectureId] = key.split('-');
-            saveProgressToBackend(userId, course, parseInt(lectureId), 'quiz', true, quiz.score);
-          }
-        });
-      } catch (error) {
-        console.error('Error syncing localStorage to backend:', error);
+    const savedProgress = localStorage.getItem(`codelab-progress-${userId}`);
+    if (!savedProgress) return;
+    try {
+      const parsedProgress = JSON.parse(savedProgress);
+      const lectures = parsedProgress.lectures || {};
+      const quizzes = parsedProgress.quizzes || {};
+      for (const [key, lecture] of Object.entries(lectures)) {
+        if (lecture.completed) {
+          const [course, lectureId] = key.split('-');
+          await saveProgressToBackend(userId, course, parseInt(lectureId, 10), 'lecture', true);
+        }
       }
+      for (const [key, quiz] of Object.entries(quizzes)) {
+        if (quiz.completed) {
+          const [course, lectureId] = key.split('-');
+          await saveProgressToBackend(userId, course, parseInt(lectureId, 10), 'quiz', true, quiz.score, quiz.total || 10);
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing localStorage to backend:', error);
     }
   };
 
@@ -229,7 +256,18 @@ export const ProgressProvider = ({ children, user }) => {
           total
         })
       });
-      
+
+      if (response.ok && onAchievementUnlocked) {
+        try {
+          const data = await response.json();
+          if (data.achievementAwarded?.key) {
+            onAchievementUnlocked(data.achievementAwarded.key);
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+      }
+
       if (!response.ok) {
         console.error('Failed to save progress to backend, status:', response.status);
         // Don't throw error, just log it - progress is still saved locally
@@ -240,10 +278,11 @@ export const ProgressProvider = ({ children, user }) => {
     }
   };
 
-  // Save progress to localStorage as backup
+  // Save progress to localStorage as backup (per-user key so progress is not mixed between users)
   useEffect(() => {
-    localStorage.setItem('codelab-progress', JSON.stringify(progress));
-  }, [progress]);
+    const key = user?.id ? `codelab-progress-${user.id}` : 'codelab-progress';
+    localStorage.setItem(key, JSON.stringify(progress));
+  }, [progress, user?.id]);
 
   // Initialize course progress on mount
   useEffect(() => {
@@ -314,41 +353,34 @@ export const ProgressProvider = ({ children, user }) => {
   const updateCourseProgress = (course, progressData = null) => {
     setProgress(prev => {
       const data = progressData || prev;
-      const courseLectures = getCourseLectures(course);
-      const courseQuizzes = getCourseQuizzes(course);
-      
-      const completedLectures = courseLectures.filter(lectureId => 
-        data.lectures[`${course}-${lectureId}`]?.completed
-      ).length;
-      
-      const completedQuizzes = courseQuizzes.filter(lectureId => 
-        data.quizzes[`${course}-${lectureId}`]?.completed
-      ).length;
-      
-      const totalItems = courseLectures.length + courseQuizzes.length;
-      const completedItems = completedLectures + completedQuizzes;
-      const coursePercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-      
-      console.log(`Updating ${course} progress:`, {
-        courseLectures,
-        courseQuizzes,
-        completedLectures,
-        completedQuizzes,
-        totalItems,
-        completedItems,
-        coursePercentage,
-        lectures: data.lectures
+      const lectureIds = getCourseLectures(course); // [1,2,3,4,5,6]
+      const totalLectures = lectureIds.length;
+
+      let lecturesMarkedComplete = 0;
+      let quizzesTaken = 0;
+      let fullyComplete = 0; // both lecture marked AND quiz taken
+
+      lectureIds.forEach(lectureId => {
+        const key = `${course}-${lectureId}`;
+        const lectureDone = !!data.lectures[key]?.completed;
+        const quizDone = !!data.quizzes[key]?.completed;
+        if (lectureDone) lecturesMarkedComplete++;
+        if (quizDone) quizzesTaken++;
+        if (lectureDone && quizDone) fullyComplete++;
       });
-      
+
+      // Progress % = lectures fully complete (both marked + quiz taken) per total
+      const coursePercentage = totalLectures > 0 ? Math.round((fullyComplete / totalLectures) * 100) : 0;
+
       return {
         ...prev,
         courses: {
           ...prev.courses,
           [course]: {
-            totalLectures: courseLectures.length,
-            completedLectures: completedLectures,
-            totalQuizzes: courseQuizzes.length,
-            completedQuizzes: completedQuizzes,
+            totalLectures,
+            lecturesMarkedComplete,
+            quizzesTaken,
+            fullyComplete,
             progress: coursePercentage,
             lastUpdated: new Date().toISOString()
           }
@@ -368,13 +400,8 @@ export const ProgressProvider = ({ children, user }) => {
   };
 
   const getCourseQuizzes = (course) => {
-    // Define quizzes for each course (same as lectures for now)
-    const courseData = {
-      HTML: [1, 2, 3],
-      'C++': [1],
-      Python: [1]
-    };
-    return courseData[course] || [];
+    // One quiz per lecture (6 per course)
+    return getCourseLectures(course);
   };
 
   const getLectureProgress = (course, lectureId) => {
@@ -387,10 +414,10 @@ export const ProgressProvider = ({ children, user }) => {
 
   const getCourseProgress = (course) => {
     return progress.courses[course] || {
-      totalLectures: 0,
-      completedLectures: 0,
-      totalQuizzes: 0,
-      completedQuizzes: 0,
+      totalLectures: 6,
+      lecturesMarkedComplete: 0,
+      quizzesTaken: 0,
+      fullyComplete: 0,
       progress: 0
     };
   };
@@ -426,12 +453,14 @@ export const ProgressProvider = ({ children, user }) => {
       console.log('Manual refresh triggered for user:', user.id);
       loadProgressFromBackend(user.id);
       loadStreakFromBackend(user.id);
+      loadStatsFromBackend(user.id);
     }
   };
 
   const value = {
     progress,
     streak,
+    stats,
     isLoading,
     markLectureComplete,
     markQuizComplete,
@@ -440,6 +469,7 @@ export const ProgressProvider = ({ children, user }) => {
     getCourseProgress,
     getOverallProgress,
     getStreak,
+    addCodeLinesWritten,
     resetProgress,
     refreshProgress
   };

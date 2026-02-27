@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import CodeEditor from './CodeEditor';
+import { useProgress } from './ProgressContext';
 import './EditorWorkspace.css';
 
-function Challenges({ onBack }) {
+function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
+  const { addCodeLinesWritten, refreshProgress } = useProgress();
   const [selectedChallengeId, setSelectedChallengeId] = useState('py-hello');
   const [language, setLanguage] = useState('Python');
   const [code, setCode] = useState('');
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const baseUrl = import.meta.env.DEV
+    ? '/api'
+    : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com');
 
   const challenges = {
     'py-hello': {
@@ -17,7 +23,7 @@ function Challenges({ onBack }) {
       difficulty: 'Beginner',
       description:
         'Write a program that prints exactly: Hello, CodeLab! (including capitalization and punctuation).',
-      starterCode: 'print("Hello, CodeLab!")\n',
+      starterCode: '',
       expectedOutput: 'Hello, CodeLab!\n',
     },
     'py-multi-line': {
@@ -27,12 +33,7 @@ function Challenges({ onBack }) {
       difficulty: 'Beginner',
       description:
         'Print exactly three separate lines: Line 1, Line 2, Line 3 (each on its own line).',
-      starterCode:
-`# TODO: print three separate lines
-print("Line 1")
-print("Line 2")
-print("Line 3")
-`,
+      starterCode: '',
       expectedOutput: 'Line 1\nLine 2\nLine 3\n',
     },
     'py-sum': {
@@ -42,11 +43,7 @@ print("Line 3")
       difficulty: 'Beginner',
       description:
         'Read two integers from input and print their sum. The numbers are on one line separated by a space.',
-      starterCode:
-`# Read two integers from input and print their sum
-# Example input: 3 5
-
-`,
+      starterCode: '',
       expectedOutputForInput: {
         input: '3 5\n',
         output: '8\n',
@@ -59,10 +56,7 @@ print("Line 3")
       difficulty: 'Intermediate',
       description:
         'Read one integer. If it is even, print "Even". If it is odd, print "Odd".',
-      starterCode:
-`# Read a number and print "Even" or "Odd"
-
-`,
+      starterCode: '',
       expectedOutputForInput: {
         input: '4\n',
         output: 'Even\n',
@@ -75,16 +69,7 @@ print("Line 3")
       difficulty: 'Beginner',
       description:
         'Read two integers from standard input and print their sum. Inputs are on one line, separated by space.',
-      starterCode:
-`#include <iostream>
-using namespace std;
-
-int main() {
-    int a, b;
-    // TODO: read a and b, then print their sum
-    return 0;
-}
-`,
+      starterCode: '',
       expectedOutputForInput: {
         input: '3 5\n',
         output: '8\n',
@@ -97,16 +82,7 @@ int main() {
       difficulty: 'Beginner',
       description:
         'Read two integers and print the larger one. If they are equal, print either value.',
-      starterCode:
-`#include <iostream>
-using namespace std;
-
-int main() {
-    int a, b;
-    // TODO: read a and b, then print the larger one
-    return 0;
-}
-`,
+      starterCode: '',
       expectedOutputForInput: {
         input: '7 2\n',
         output: '7\n',
@@ -119,16 +95,7 @@ int main() {
       difficulty: 'Intermediate',
       description:
         'Read an integer N and print the numbers from 1 to N, each on its own line.',
-      starterCode:
-`#include <iostream>
-using namespace std;
-
-int main() {
-    int n;
-    // TODO: read n and print numbers from 1 to n
-    return 0;
-}
-`,
+      starterCode: '',
       expectedOutputForInput: {
         input: '3\n',
         output: '1\n2\n3\n',
@@ -165,7 +132,7 @@ int main() {
         body.testInput = current.expectedOutputForInput.input;
       }
 
-      const resp = await fetch('/run', {
+      const resp = await fetch(`${baseUrl}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -183,8 +150,13 @@ int main() {
 
       const output = data.output || '';
 
+      const lineCount = (code || '').split('\n').length;
+      if (lineCount > 0) addCodeLinesWritten(lineCount);
+
+      let passed = false;
       if (current.expectedOutput) {
         const ok = normalize(output) === normalize(current.expectedOutput);
+        passed = ok;
         setResult({
           status: ok ? 'passed' : 'failed',
           message: ok
@@ -196,6 +168,7 @@ int main() {
       } else if (current.expectedOutputForInput) {
         const ok =
           normalize(output) === normalize(current.expectedOutputForInput.output);
+        passed = ok;
         setResult({
           status: ok ? 'passed' : 'failed',
           message: ok
@@ -211,6 +184,22 @@ int main() {
           message: 'Program ran. Manually check if it meets the requirements.',
           rawOutput: output,
         });
+      }
+
+      if (passed && user?.id && baseUrl) {
+        try {
+          const achRes = await fetch(`${baseUrl}/achievements`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, key: `challenge:${current.id}` }),
+          });
+          if (achRes.ok) {
+            if (onAchievementUnlocked) onAchievementUnlocked(`challenge:${current.id}`);
+            refreshProgress(); // update "Challenges Completed" and other stats on dashboard
+          }
+        } catch (e) {
+          // ignore
+        }
       }
     } catch (e) {
       setResult({
@@ -232,7 +221,7 @@ int main() {
   }, []);
 
   return (
-    <div className="editor-workspace">
+    <div className={`editor-workspace${darkMode ? ' editor-workspace-dark' : ''}`}>
       <div className="editor-toolbar">
         <button className="btn-back" onClick={onBack}>← Back</button>
         <div className="toolbar-right">
@@ -279,6 +268,7 @@ int main() {
             language={language}
             initialCode={code}
             onCodeChange={handleCodeChange}
+            darkMode={darkMode}
           />
 
           <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
@@ -293,6 +283,7 @@ int main() {
 
           {result && (
             <div
+              className={`challenge-result ${result.status}${darkMode ? ' challenge-result-dark' : ''}`}
               style={{
                 marginTop: '1rem',
                 padding: '0.75rem 1rem',

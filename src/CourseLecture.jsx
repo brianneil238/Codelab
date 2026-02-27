@@ -3,44 +3,45 @@ import './CourseLecture.css';
 import LecturePlayer from './LecturePlayer';
 import { useProgress } from './ProgressContext';
 
-function CourseLecture({ course, onBack }) {
+function CourseLecture({ course, onBack, darkMode = false }) {
   const [currentLecture, setCurrentLecture] = useState(null);
   const { getLectureProgress, getQuizProgress, getCourseProgress } = useProgress();
+  // One short tutorial video per lecture. Set each title to match your video; update lectureContent in LecturePlayer.jsx too.
   const courses = {
     HTML: {
       title: "HTML Beginner Course",
-      description: "Learn the fundamentals of HTML web development",
+      description: "Each lecture has a short tutorial video – watch it, then read the notes and try the exercises",
       lectures: [
-        { id: 1, title: "Introduction to HTML", duration: "15 min", completed: false },
-        { id: 2, title: "HTML Document Structure", duration: "20 min", completed: false },
-        { id: 3, title: "HTML Elements and Tags", duration: "25 min", completed: false },
-        { id: 4, title: "HTML Attributes", duration: "18 min", completed: false },
-        { id: 5, title: "HTML Forms", duration: "30 min", completed: false },
-        { id: 6, title: "HTML Tables", duration: "22 min", completed: false }
+        { id: 1, title: "Lecture 1", duration: "~10 min", completed: false },
+        { id: 2, title: "Lecture 2", duration: "~10 min", completed: false },
+        { id: 3, title: "Lecture 3", duration: "~10 min", completed: false },
+        { id: 4, title: "Lecture 4", duration: "~10 min", completed: false },
+        { id: 5, title: "Lecture 5", duration: "~10 min", completed: false },
+        { id: 6, title: "Lecture 6", duration: "~10 min", completed: false }
       ]
     },
     "C++": {
       title: "C++ Beginner Course",
-      description: "Master the basics of C++ programming language",
+      description: "Each lecture has a short tutorial video – watch it, then read the notes and try the exercises",
       lectures: [
-        { id: 1, title: "Introduction to C++", duration: "20 min", completed: false },
-        { id: 2, title: "Variables and Data Types", duration: "25 min", completed: false },
-        { id: 3, title: "Input and Output", duration: "18 min", completed: false },
-        { id: 4, title: "Control Structures", duration: "35 min", completed: false },
-        { id: 5, title: "Functions", duration: "30 min", completed: false },
-        { id: 6, title: "Arrays and Strings", duration: "28 min", completed: false }
+        { id: 1, title: "Lecture 1", duration: "~10 min", completed: false },
+        { id: 2, title: "Lecture 2", duration: "~10 min", completed: false },
+        { id: 3, title: "Lecture 3", duration: "~10 min", completed: false },
+        { id: 4, title: "Lecture 4", duration: "~10 min", completed: false },
+        { id: 5, title: "Lecture 5", duration: "~10 min", completed: false },
+        { id: 6, title: "Lecture 6", duration: "~10 min", completed: false }
       ]
     },
     Python: {
       title: "Python Beginner Course",
-      description: "Start your journey with Python programming",
+      description: "Each lecture has a short tutorial video – watch it, then read the notes and try the exercises",
       lectures: [
-        { id: 1, title: "Introduction to Python", duration: "18 min", completed: false },
-        { id: 2, title: "Python Variables", duration: "15 min", completed: false },
-        { id: 3, title: "Python Data Types", duration: "22 min", completed: false },
-        { id: 4, title: "Python Control Flow", duration: "28 min", completed: false },
-        { id: 5, title: "Python Functions", duration: "25 min", completed: false },
-        { id: 6, title: "Python Lists and Dictionaries", duration: "30 min", completed: false }
+        { id: 1, title: "Lecture 1", duration: "~10 min", completed: false },
+        { id: 2, title: "Lecture 2", duration: "~10 min", completed: false },
+        { id: 3, title: "Lecture 3", duration: "~10 min", completed: false },
+        { id: 4, title: "Lecture 4", duration: "~10 min", completed: false },
+        { id: 5, title: "Lecture 5", duration: "~10 min", completed: false },
+        { id: 6, title: "Lecture 6", duration: "~10 min", completed: false }
       ]
     }
   };
@@ -61,13 +62,14 @@ function CourseLecture({ course, onBack }) {
       <LecturePlayer 
         lecture={currentLecture} 
         course={course} 
-        onBack={handleBackToCourse} 
+        onBack={handleBackToCourse}
+        darkMode={darkMode}
       />
     );
   }
 
   return (
-    <div className="course-lecture">
+    <div className={`course-lecture${darkMode ? ' course-lecture-dark' : ''}`}>
       <header className="course-header">
         <div className="course-header-content">
           <button className="back-btn" onClick={onBack}>
@@ -88,6 +90,7 @@ function CourseLecture({ course, onBack }) {
               <div className="progress-fill" style={{ width: `${getCourseProgress(course).progress}%` }}></div>
             </div>
             <span className="progress-text">{getCourseProgress(course).progress}% Complete</span>
+            <span className="progress-breakdown">{getCourseProgress(course).lecturesMarkedComplete ?? 0}/{getCourseProgress(course).totalLectures ?? 6} lectures completed · {getCourseProgress(course).quizzesTaken ?? 0}/{getCourseProgress(course).totalLectures ?? 6} quizzes taken</span>
           </div>
 
           <div className="lectures-section">
@@ -96,10 +99,12 @@ function CourseLecture({ course, onBack }) {
               {courseData.lectures.map((lecture) => {
                 const lectureProgress = getLectureProgress(course, lecture.id);
                 const quizProgress = getQuizProgress(course, lecture.id);
-                const isCompleted = lectureProgress.completed;
+                const lectureDone = lectureProgress.completed;
+                const quizDone = quizProgress.completed;
+                const isFullyComplete = lectureDone && quizDone;
                 
                 return (
-                  <div key={lecture.id} className={`lecture-item ${isCompleted ? 'completed' : ''}`}>
+                  <div key={lecture.id} className={`lecture-item ${isFullyComplete ? 'completed' : ''}`}>
                     <div className="lecture-info">
                       <div className="lecture-number">{lecture.id}</div>
                       <div className="lecture-details">
@@ -109,23 +114,26 @@ function CourseLecture({ course, onBack }) {
                           <div className="progress-info">
                             <span className="progress-label">Progress</span>
                             <span className="progress-percentage">
-                              {isCompleted ? '100%' : '0%'}
+                              {lectureDone ? '100%' : '0%'}
                             </span>
                           </div>
                           <div className="progress-bar">
                             <div 
                               className="progress-fill" 
-                              style={{ width: `${isCompleted ? 100 : 0}%` }}
+                              style={{ width: `${lectureDone ? 100 : 0}%` }}
                             ></div>
                           </div>
+                          <span className={`lecture-quiz-status ${quizDone ? 'quiz-taken' : 'quiz-pending'}`}>
+                            {quizDone ? '✓ Quiz taken' : 'Quiz not taken'}
+                          </span>
                         </div>
                       </div>
                     </div>
                     <button 
-                      className={`start-lecture-btn ${isCompleted ? 'completed' : ''}`}
+                      className={`start-lecture-btn ${isFullyComplete ? 'completed' : ''}`}
                       onClick={() => handleLectureStart(lecture)}
                     >
-                      {isCompleted ? '✓ Completed' : 'Start Lecture'}
+                      {isFullyComplete ? '✓ Completed' : lectureDone ? 'Take quiz' : 'Start Lecture'}
                     </button>
                   </div>
                 );

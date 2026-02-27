@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import CodeEditor from './CodeEditor';
+import { useProgress } from './ProgressContext';
 import './EditorWorkspace.css';
 
-function EditorWorkspace({ onBack }) {
+function EditorWorkspace({ onBack, darkMode = false }) {
+  const { addCodeLinesWritten } = useProgress();
   const [language, setLanguage] = useState('HTML');
   const [codeByLang, setCodeByLang] = useState({
     HTML: `<!DOCTYPE html>\n<html>\n<head>\n    <title>My Page</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n    <p>Edit this HTML and preview on the right.</p>\n</body>\n</html>`,
@@ -26,7 +28,7 @@ function EditorWorkspace({ onBack }) {
   };
 
   return (
-    <div className="editor-workspace">
+    <div className={`editor-workspace${darkMode ? ' editor-workspace-dark' : ''}`}>
       <div className="editor-toolbar">
         <button className="btn-back" onClick={onBack}>← Back</button>
         <div className="toolbar-right">
@@ -63,7 +65,13 @@ function EditorWorkspace({ onBack }) {
         </div>
       </div>
 
-      <CodeEditor language={language} initialCode={codeByLang[language]} onCodeChange={handleCodeChange} />
+      <CodeEditor
+        language={language}
+        initialCode={codeByLang[language]}
+        onCodeChange={handleCodeChange}
+        onCodeRun={addCodeLinesWritten ? (_code, lines) => addCodeLinesWritten(lines) : undefined}
+        darkMode={darkMode}
+      />
     </div>
   );
 }

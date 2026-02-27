@@ -9,17 +9,11 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      '/login': {
+      // Proxy all /api/* to local backend so login, forgot-password, progress, etc. work without CORS
+      '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
-      },
-      '/signup': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/run': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

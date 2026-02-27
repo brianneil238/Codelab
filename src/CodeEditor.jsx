@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import './CodeEditor.css';
 
-function CodeEditor({ language, initialCode, onCodeChange }) {
+function CodeEditor({ language, initialCode, onCodeChange, onCodeRun, guide, darkMode = false }) {
   const [code, setCode] = useState(initialCode || '');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [debugHints, setDebugHints] = useState([]);
+  const [htmlPreviewKey, setHtmlPreviewKey] = useState(0);
 
-  // Use same API base URL logic as the rest of the app
-  const API_URL = import.meta.env.VITE_API_URL || '';
-  const useAbsolute = API_URL && !API_URL.includes('localhost');
-  const baseUrl = useAbsolute ? API_URL : 'https://codelab-api-qq4v.onrender.com';
+  const baseUrl = import.meta.env.DEV
+    ? '/api'
+    : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com');
 
   useEffect(() => {
     setCode(initialCode || '');
@@ -32,16 +32,20 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
   };
 
   const runCode = async () => {
+    if (onCodeRun && code.trim()) {
+      const lines = code.split('\n').length;
+      if (lines > 0) onCodeRun(code, lines);
+    }
+    if (language.toLowerCase() === 'html') {
+      setHtmlPreviewKey((k) => k + 1);
+      return;
+    }
+
     setIsRunning(true);
     setOutput('Running...');
     setDebugHints([]);
 
     try {
-      if (language.toLowerCase() === 'html') {
-        setIsRunning(false);
-        return;
-      }
-
       const endpoint = `${baseUrl}/run`;
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -57,7 +61,14 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
         data = { error: textBody || `Server returned status ${response.status}` };
       }
       if (!response.ok) {
-        const text = data?.error || 'Failed to run code';
+        const rawError = data?.error || data?.message || (data?.run?.stderr || data?.run?.stdout) || 'Failed to run code. Check your connection or try again.';
+        let text = rawError;
+        if (/whitelist|Piston API|consider hosting your own Piston/i.test(rawError)) {
+          text = 'Code execution is not available for this app right now.\n\n' +
+            'You can:\n' +
+            '• Run your code in an IDE on your computer (e.g. Visual Studio, Code::Blocks, VS Code for C++; IDLE or VS Code for Python).\n' +
+            '• Ask your teacher if your school can set up a code runner for CodeLab.';
+        }
         setOutput(text);
         setDebugHints(generateHints(language, code, text));
       } else {
@@ -136,6 +147,28 @@ function CodeEditor({ language, initialCode, onCodeChange }) {
     }
   };
 
+  const openHtmlInNewTab = () => {
+    if (language.toLowerCase() !== 'html') return;
+    const doc = code || '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body><p>No content yet.</p></body></html>';
+    const blob = new Blob([doc], { type: 'text/html; charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    if (w) {
+      // Revoke blob URL after the new tab has had time to load (revoking too soon can leave the tab blank).
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } else {
+      // Popup blocked: fallback to link click so the blob still opens in a new tab.
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+  };
+
   const getLanguagePlaceholder = () => {
     switch (language.toLowerCase()) {
       case 'html':
@@ -166,19 +199,50 @@ print("Try editing this code!")`;
     }
   };
 
+  const isHtml = language.toLowerCase() === 'html';
+
+  const getPreviewHtml = () => {
+    const raw = code || '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body><p>Write HTML and click Run Code to see your website here.</p></body></html>';
+    if (!darkMode) return raw;
+    const darkStyle = '<style>body{background:#1e231e !important;color:#e5e7eb !important;} a{color:#81c784;} h1,h2,h3,h4,h5,h6,p,span,div,li{color:inherit;}</style>';
+    if (raw.match(/<head[^>]*>/i)) {
+      return raw.replace(/(<head[^>]*>)/i, '$1' + darkStyle);
+    }
+    if (raw.match(/<html/i)) {
+      return raw.replace(/(<html[^>]*>)/i, '$1<head>' + darkStyle + '</head>');
+    }
+    return '<!DOCTYPE html><html><head><meta charset="utf-8">' + darkStyle + '</head><body>' + raw + '</body></html>';
+  };
+
   return (
-    <div className="code-editor">
+    <div className={`code-editor ${isHtml ? 'code-editor-html' : ''}${darkMode ? ' code-editor-dark' : ''}`}>
+      {guide && guide.steps && guide.steps.length > 0 && (
+        <div className="editor-guide">
+          <h4 className="editor-guide-title">{guide.taskTitle || 'What to do in this lecture'}</h4>
+          <p className="editor-guide-intro">Type your code below (start from scratch). Follow these steps:</p>
+          <ol className="editor-guide-steps">
+            {guide.steps.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      )}
       <div className="editor-header">
         <h3>Try it yourself - {language}</h3>
         <div className="editor-actions">
           <button 
             className="run-btn" 
             onClick={runCode}
-            disabled={isRunning || language.toLowerCase() === 'html'}
+            disabled={isRunning}
           >
-            {language.toLowerCase() === 'html' ? 'Live Preview' : 
+            {isHtml ? '▶ Run Code' : 
              isRunning ? 'Running...' : '▶ Run Code'}
           </button>
+          {isHtml && (
+            <button type="button" className="open-website-btn" onClick={openHtmlInNewTab}>
+              Open as website
+            </button>
+          )}
           <button className="clear-btn" onClick={clearCode}>
             Clear
           </button>
@@ -204,16 +268,23 @@ print("Try editing this code!")`;
         </div>
         
         <div className="output-section">
-          <div className="output-header">
-            <span className="output-label">
-              {language.toLowerCase() === 'html' ? 'Live Preview' : 'Output'}
-            </span>
-          </div>
+          {!isHtml && (
+            <div className="output-header">
+              <span className="output-label">Output</span>
+            </div>
+          )}
           <div className="output-content">
-            {language.toLowerCase() === 'html' ? (
+            {isHtml ? (
               <div className="html-preview">
+                <div className="html-preview-bar">
+                  <span className="html-preview-label">Website preview</span>
+                  <button type="button" className="html-preview-open-btn" onClick={openHtmlInNewTab}>
+                    Open in new tab
+                  </button>
+                </div>
                 <iframe
-                  srcDoc={code}
+                  key={htmlPreviewKey}
+                  srcDoc={getPreviewHtml()}
                   title="HTML Preview"
                   className="preview-iframe"
                   sandbox="allow-scripts"
@@ -233,10 +304,10 @@ print("Try editing this code!")`;
       <div className="editor-tips">
         <h4>💡 Tips:</h4>
         <ul>
-          {language.toLowerCase() === 'html' ? (
+          {isHtml ? (
             <>
-              <li>Edit the HTML code above and see the live preview on the right</li>
-              <li>The preview updates automatically as you type</li>
+              <li>Edit the HTML code and click "Run Code" to see your website in the preview</li>
+              <li>Use "Open as website" or "Open in new tab" to view the page in a full browser tab</li>
               <li>Use "Clear" to start fresh or "Reset" to restore the original code</li>
             </>
           ) : (
