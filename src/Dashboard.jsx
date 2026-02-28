@@ -15,7 +15,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileForm, setProfileForm] = useState({
-    fullName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '', contact: '',
+    lastName: '', firstName: '', middleName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '', contact: '',
   });
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -68,8 +68,23 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
     setProfilePreview(null);
     setProfileFile(null);
     setProfileError('');
+    let lastName = user?.lastName ?? '';
+    let firstName = user?.firstName ?? '';
+    let middleName = user?.middleName ?? '';
+    if (!lastName && !firstName && user?.fullName) {
+      const parts = String(user.fullName).trim().split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        firstName = parts[0];
+        lastName = parts[parts.length - 1];
+        middleName = parts.slice(1, -1).join(' ');
+      } else if (parts.length === 1) {
+        firstName = parts[0];
+      }
+    }
     setProfileForm({
-      fullName: user?.fullName ?? '',
+      lastName,
+      firstName,
+      middleName,
       username: user?.username ?? '',
       birthday: user?.birthday ?? '',
       age: user?.age !== undefined && user?.age !== null ? String(user.age) : '',
@@ -129,8 +144,10 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
     setProfileError('');
     try {
       const payload = {
-        fullName: profileForm.fullName.trim(),
-        username: profileForm.username.trim(),
+        lastName: String(profileForm.lastName ?? '').trim(),
+        firstName: String(profileForm.firstName ?? '').trim(),
+        middleName: String(profileForm.middleName ?? '').trim(),
+        username: (profileForm.username || '').trim(),
         birthday: profileForm.birthday || null,
         age: profileForm.age === '' ? null : Number(profileForm.age),
         sex: profileForm.sex,
@@ -169,7 +186,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
     }
   };
 
-  const initial = user.fullName ? user.fullName.charAt(0) : (user.username || 'U').charAt(0);
+  const initial = (user.fullName || user.firstName || user.username || 'U').toString().charAt(0);
 
   return (
     <div className={`dashboard${darkMode ? ' dashboard-dark' : ''}`}>
@@ -285,8 +302,16 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                   <h4 className="profile-form-section-title">Personal</h4>
                   <div className="profile-form-grid">
                   <div className="profile-form-field">
-                    <label className="profile-form-label">Full name</label>
-                    <input type="text" name="fullName" value={profileForm.fullName} onChange={handleProfileFormChange} className="profile-form-input" />
+                    <label className="profile-form-label">Last Name</label>
+                    <input type="text" name="lastName" value={profileForm.lastName} onChange={handleProfileFormChange} className="profile-form-input" />
+                  </div>
+                  <div className="profile-form-field">
+                    <label className="profile-form-label">First Name</label>
+                    <input type="text" name="firstName" value={profileForm.firstName} onChange={handleProfileFormChange} className="profile-form-input" />
+                  </div>
+                  <div className="profile-form-field">
+                    <label className="profile-form-label">Middle Name</label>
+                    <input type="text" name="middleName" value={profileForm.middleName} onChange={handleProfileFormChange} className="profile-form-input" />
                   </div>
                   <div className="profile-form-field">
                     <label className="profile-form-label">Username</label>

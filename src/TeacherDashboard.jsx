@@ -67,6 +67,10 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const [completionModalCourse, setCompletionModalCourse] = useState('HTML'); // 'HTML' | 'C++' | 'Python'
   const [completionModalStatus, setCompletionModalStatus] = useState('inProgress'); // 'completed' | 'inProgress' | 'notStarted'
   const [studentsModalOpen, setStudentsModalOpen] = useState(false);
+  const [studentsModalRefreshing, setStudentsModalRefreshing] = useState(false);
+  const [deletingStudentId, setDeletingStudentId] = useState(null);
+  const [deleteConfirmStudent, setDeleteConfirmStudent] = useState(null); // { student, displayName } when confirmation dialog is open
+  const [studentPhotoZoom, setStudentPhotoZoom] = useState(null); // { url, name } or null
 
   const baseUrl = baseUrlProp ?? (import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com'));
 
@@ -85,6 +89,26 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') setStudentPhotoZoom(null);
+    };
+    if (studentPhotoZoom) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [studentPhotoZoom]);
+
+  useEffect(() => {
+    const handleEscapeConfirm = (e) => {
+      if (e.key === 'Escape') setDeleteConfirmStudent(null);
+    };
+    if (deleteConfirmStudent) {
+      document.addEventListener('keydown', handleEscapeConfirm);
+      return () => document.removeEventListener('keydown', handleEscapeConfirm);
+    }
+  }, [deleteConfirmStudent]);
 
   useEffect(() => {
     if (announcementTargetGrade && !['11', '12'].includes(String(announcementTargetGrade))) {
@@ -271,6 +295,71 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     loadAnnouncements();
   }, [baseUrl, refreshKey]);
 
+  // Refetch students and class detail when opening the Students modal so list shows up-to-date names/photos
+  useEffect(() => {
+    if (!studentsModalOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [studentsRes, detailRes] = await Promise.all([
+          fetch(`${baseUrl}/students`),
+          fetch(`${baseUrl}/teacher/class-detail`),
+        ]);
+        if (cancelled) return;
+        if (studentsRes.ok) {
+          const d = await studentsRes.json();
+          setStudents(d.students || []);
+        }
+        if (detailRes.ok) {
+          const d = await detailRes.json();
+          setClassDetail(d.students || []);
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [baseUrl, studentsModalOpen]);
+
+  const refreshStudentsModal = async () => {
+    setStudentsModalRefreshing(true);
+    try {
+      const [studentsRes, detailRes] = await Promise.all([
+        fetch(`${baseUrl}/students`),
+        fetch(`${baseUrl}/teacher/class-detail`),
+      ]);
+      if (studentsRes.ok) {
+        const d = await studentsRes.json();
+        setStudents(d.students || []);
+      }
+      if (detailRes.ok) {
+        const d = await detailRes.json();
+        setClassDetail(d.students || []);
+      }
+    } catch (_) {}
+    finally {
+      setStudentsModalRefreshing(false);
+    }
+  };
+
+  const performDeleteStudent = async (student) => {
+    setDeletingStudentId(student.id);
+    setDeleteConfirmStudent(null);
+    try {
+      const res = await fetch(`${baseUrl}/users/${student.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || data.error || 'Failed to delete student');
+        return;
+      }
+      if (selectedStudent?.id === student.id) setSelectedStudent(null);
+      setStudentProgress(null);
+      await refreshStudentsModal();
+    } catch {
+      alert('Network error. Could not delete student.');
+    } finally {
+      setDeletingStudentId(null);
+    }
+  };
+
   const handleSelectStudent = async (student) => {
     setSelectedStudent(student);
     setStudentProgress(null);
@@ -400,6 +489,32 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     if (diffDays < 7) return `${diffDays} days ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} week(s) ago`;
     return d.toLocaleDateString();
+  };
+
+  /** Format as "Last Name, First Name Middle Initial" from full_name string (fallback when no parts). */
+  const formatLastFirstMI = (fullName) => {
+    if (!fullName || !String(fullName).trim()) return '';
+    const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0];
+    const last = parts[parts.length - 1];
+    const first = parts[0];
+    const middleParts = parts.slice(1, -1);
+    const middleInitial = middleParts.length ? (middleParts[0][0] || '').toUpperCase() + '.' : '';
+    return middleInitial ? `${last}, ${first} ${middleInitial}` : `${last}, ${first}`;
+  };
+
+  /** Prefer "Last Name, First Name Middle Initial" from last_name/first_name/middle_name when present. */
+  const formatStudentDisplayName = (s) => {
+    if (!s) return '';
+    const ln = (s.last_name || '').toString().trim();
+    const fn = (s.first_name || '').toString().trim();
+    const mn = (s.middle_name || '').toString().trim();
+    if (ln || fn) {
+      const mi = mn ? (mn[0] || '').toUpperCase() + '.' : '';
+      const firstPart = fn + (mi ? ` ${mi}` : '');
+      return ln ? `${ln}, ${firstPart}`.trim() : firstPart.trim();
+    }
+    return formatLastFirstMI(s.full_name) || '';
   };
 
   const detailByStudentId = React.useMemo(() => {
@@ -550,11 +665,36 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     return rows;
   }, [completionBuckets, completionModalCourse, completionModalStatus]);
 
-  const studentsModalRows = React.useMemo(() => {
-    const list = [...filteredStudents];
-    // Keep current name sort in filteredStudents; no extra sort here.
-    return list;
-  }, [filteredStudents]);
+  /** Groups for Students modal: by grade → strand (if 11/12) → section, each group sorted A–Z by name */
+  const studentsModalGroups = React.useMemo(() => {
+    const groups = [];
+    const gss = studentsByGradeStrandSection;
+    for (const g of GRADES) {
+      if (!gss[g]) continue;
+      const byStrand = gss[g];
+      const strandKeys = (g === '11' || g === '12')
+        ? [...STRANDS, ''].filter((s) => byStrand[s] != null)
+        : Object.keys(byStrand);
+      for (const str of strandKeys) {
+        if (!byStrand[str]) continue;
+        const bySection = byStrand[str];
+        const sections = Object.keys(bySection).sort();
+        for (const sec of sections) {
+          const list = [...(bySection[sec] || [])].sort((a, b) => {
+            const na = (a.full_name || a.username || '').toLowerCase();
+            const nb = (b.full_name || b.username || '').toLowerCase();
+            return na < nb ? -1 : na > nb ? 1 : 0;
+          });
+          if (list.length === 0) continue;
+          const strandLabel = (g === '11' || g === '12') && str ? ` ${str}` : '';
+          const sectionLabel = sec && sec !== '—' ? ` ${sec}` : (sec === '—' ? '' : ` ${sec}`);
+          const label = `Grade ${g}${strandLabel}${sectionLabel}`.trim() || `Grade ${g}`;
+          groups.push({ label, students: list });
+        }
+      }
+    }
+    return groups;
+  }, [studentsByGradeStrandSection]);
 
   // Per-course completion buckets from filtered list
   const perCourseBuckets = React.useMemo(() => {
@@ -903,6 +1043,52 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
 
       <main className="dashboard-main">
         <div className="dashboard-container">
+          <div className="teacher-dashboard-layout">
+            {!loading && (
+              <aside className="teacher-sidebar" aria-label="Dashboard sections">
+                <nav className="teacher-tabs">
+                  <button
+                    type="button"
+                    className={`teacher-tab ${activeTab === 'overview' ? 'teacher-tab-active' : ''}`}
+                    onClick={() => setActiveTab('overview')}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    type="button"
+                    className={`teacher-tab ${activeTab === 'needs-attention' ? 'teacher-tab-active' : ''}`}
+                    onClick={() => { setActiveTab('needs-attention'); setShowNeedsAttention(true); }}
+                  >
+                    Needs attention
+                    {classDetail?.length > 0 && needsAttentionUniqueCountAll > 0 && (
+                      <span className="teacher-tab-badge">{needsAttentionUniqueCountAll}</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={`teacher-tab ${activeTab === 'completion' ? 'teacher-tab-active' : ''}`}
+                    onClick={() => { setActiveTab('completion'); setShowCompletionByCourse(true); }}
+                  >
+                    Completion
+                  </button>
+                  <button
+                    type="button"
+                    className={`teacher-tab ${activeTab === 'students' ? 'teacher-tab-active' : ''}`}
+                    onClick={() => setActiveTab('students')}
+                  >
+                    Students
+                  </button>
+                  <button
+                    type="button"
+                    className={`teacher-tab ${activeTab === 'announcements' ? 'teacher-tab-active' : ''}`}
+                    onClick={() => setActiveTab('announcements')}
+                  >
+                    Announcements
+                  </button>
+                </nav>
+              </aside>
+            )}
+            <div className="teacher-main-content">
           <div className="welcome-section">
             <h2>Welcome back</h2>
             <p>View your class progress and see how everyone is doing with HTML, C++, and Python.</p>
@@ -945,50 +1131,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
             </div>
           )}
 
-          {!loading && (
-            <nav className="teacher-tabs" aria-label="Dashboard sections">
-              <button
-                type="button"
-                className={`teacher-tab ${activeTab === 'overview' ? 'teacher-tab-active' : ''}`}
-                onClick={() => setActiveTab('overview')}
-              >
-                Overview
-              </button>
-              <button
-                type="button"
-                className={`teacher-tab ${activeTab === 'needs-attention' ? 'teacher-tab-active' : ''}`}
-                onClick={() => { setActiveTab('needs-attention'); setShowNeedsAttention(true); }}
-              >
-                Needs attention
-                {classDetail?.length > 0 && needsAttentionUniqueCountAll > 0 && (
-                  <span className="teacher-tab-badge">{needsAttentionUniqueCountAll}</span>
-                )}
-              </button>
-              <button
-                type="button"
-                className={`teacher-tab ${activeTab === 'completion' ? 'teacher-tab-active' : ''}`}
-                onClick={() => { setActiveTab('completion'); setShowCompletionByCourse(true); }}
-              >
-                Completion
-              </button>
-              <button
-                type="button"
-                className={`teacher-tab ${activeTab === 'students' ? 'teacher-tab-active' : ''}`}
-                onClick={() => setActiveTab('students')}
-              >
-                Students
-              </button>
-              <button
-                type="button"
-                className={`teacher-tab ${activeTab === 'announcements' ? 'teacher-tab-active' : ''}`}
-                onClick={() => setActiveTab('announcements')}
-              >
-                Announcements
-              </button>
-            </nav>
-          )}
-
-          {!loading && activeTab === 'overview' && (
+              {!loading && activeTab === 'overview' && (
             <div className="teacher-overview-cards">
               <div className="teacher-overview-card" onClick={() => { setActiveTab('needs-attention'); setShowNeedsAttention(true); }}>
                 <span className="teacher-overview-card-icon">⚠️</span>
@@ -1334,49 +1477,151 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                     >
                       Clear
                     </button>
+                    <button
+                      type="button"
+                      className="teacher-refresh-btn"
+                      onClick={refreshStudentsModal}
+                      disabled={studentsModalRefreshing}
+                      title="Refresh student list"
+                    >
+                      {studentsModalRefreshing ? 'Refreshing…' : 'Refresh'}
+                    </button>
                   </div>
-                  {studentsModalRows.length === 0 ? (
+                  {studentsModalGroups.length === 0 ? (
                     <p className="teacher-empty">No students match your search/filters.</p>
                   ) : (
-                    <div className="teacher-attention-table-wrap">
-                      <table className="teacher-attention-table teacher-attention-table-students teacher-attention-table-has-action">
-                        <thead>
-                          <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Grade</th>
-                            <th>Strand</th>
-                            <th>Section</th>
-                            <th>Overall</th>
-                            <th>Last active</th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {studentsModalRows.map((s) => (
-                            <tr key={s.id}>
-                              <td className="teacher-attention-name">{s.full_name || s.username}</td>
-                              <td>{s.email || '—'}</td>
-                              <td>{s.grade || '—'}</td>
-                              <td>{s.strand || '—'}</td>
-                              <td>{s.section || '—'}</td>
-                              <td>{detailByStudentId[s.id]?.overallProgress != null ? `${detailByStudentId[s.id].overallProgress}%` : '—'}</td>
-                              <td>{getLastActiveText(detailByStudentId[s.id]?.lastActivity)}</td>
-                              <td>
-                                <button
-                                  type="button"
-                                  className="teacher-row-action"
-                                  onClick={() => { setStudentsModalOpen(false); handleSelectStudent(s); }}
-                                >
-                                  View progress
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="teacher-students-by-group">
+                      {studentsModalGroups.map((grp) => (
+                        <section key={grp.label} className="teacher-student-group-block">
+                          <h4 className="teacher-student-group-title">{grp.label}</h4>
+                          <div className="teacher-attention-table-wrap">
+                            <table className="teacher-attention-table teacher-attention-table-students teacher-attention-table-has-action">
+                              <thead>
+                                <tr>
+                                  <th>Last Name, First Name Middle Initial</th>
+                                  <th>Overall</th>
+                                  <th>Last active</th>
+                                  <th></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {grp.students.map((s) => {
+                                  const photo = s.profile_photo || detailByStudentId[s.id]?.profile_photo;
+                                  const displayName = formatStudentDisplayName(s) || s.username || '—';
+                                  const initial = displayName.charAt(0).toUpperCase();
+                                  return (
+                                  <tr key={s.id}>
+                                    <td className="teacher-attention-name">
+                                      <span className="teacher-student-row-avatar-wrap">
+                                        {photo ? (
+                                          <button
+                                            type="button"
+                                            className="teacher-student-row-avatar-btn"
+                                            onClick={() => setStudentPhotoZoom({ url: photo, name: displayName })}
+                                            aria-label={`View ${displayName}'s profile photo`}
+                                          >
+                                            <img src={photo} alt="" className="teacher-student-row-avatar" />
+                                          </button>
+                                        ) : (
+                                          <span className="teacher-student-row-avatar teacher-student-row-avatar-placeholder" aria-hidden>{initial}</span>
+                                        )}
+                                        <span className="teacher-student-row-name">{displayName}</span>
+                                      </span>
+                                    </td>
+                                    <td>{detailByStudentId[s.id]?.overallProgress != null ? `${detailByStudentId[s.id].overallProgress}%` : '—'}</td>
+                                    <td>{getLastActiveText(detailByStudentId[s.id]?.lastActivity)}</td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        className="teacher-row-action"
+                                        onClick={() => { setStudentsModalOpen(false); handleSelectStudent(s); }}
+                                      >
+                                        View progress
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="teacher-delete-switch"
+                                        onClick={() => setDeleteConfirmStudent({ student: s, displayName })}
+                                        disabled={deletingStudentId === s.id}
+                                        title={`Delete ${displayName}`}
+                                        aria-label={`Delete ${displayName}`}
+                                      >
+                                        <span className="teacher-delete-switch-track">
+                                          <span className="teacher-delete-switch-thumb" />
+                                          <span className="teacher-delete-switch-label">Delete</span>
+                                        </span>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </section>
+                      ))}
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {studentPhotoZoom && (
+            <div
+              className={`teacher-photo-zoom-overlay ${darkMode ? 'teacher-photo-zoom-overlay-dark' : ''}`}
+              onClick={() => setStudentPhotoZoom(null)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setStudentPhotoZoom(null)}
+              aria-label="Close zoomed photo"
+            >
+              <div className="teacher-photo-zoom-content" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="teacher-photo-zoom-close"
+                  onClick={() => setStudentPhotoZoom(null)}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+                <img src={studentPhotoZoom.url} alt={studentPhotoZoom.name} className="teacher-photo-zoom-img" />
+                <p className="teacher-photo-zoom-name">{studentPhotoZoom.name}</p>
+              </div>
+            </div>
+          )}
+
+          {deleteConfirmStudent && (
+            <div
+              className={`teacher-confirm-overlay ${darkMode ? 'teacher-confirm-overlay-dark' : ''}`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="teacher-delete-confirm-title"
+              onClick={() => setDeleteConfirmStudent(null)}
+            >
+              <div className="teacher-confirm-box" onClick={(e) => e.stopPropagation()}>
+                <div className="teacher-confirm-warning-icon" aria-hidden>
+                  <span className="teacher-confirm-warning-exclamation">!</span>
+                </div>
+                <h3 id="teacher-delete-confirm-title" className="teacher-confirm-title">Confirm Deletion</h3>
+                <p className="teacher-confirm-message">
+                  Are you sure you want to delete this student <strong>{deleteConfirmStudent.displayName}</strong> and all associated progress?
+                </p>
+                <div className="teacher-confirm-actions">
+                  <button
+                    type="button"
+                    className="teacher-confirm-yes"
+                    onClick={() => performDeleteStudent(deleteConfirmStudent.student)}
+                  >
+                    Yes, delete it!
+                  </button>
+                  <button
+                    type="button"
+                    className="teacher-confirm-cancel"
+                    onClick={() => setDeleteConfirmStudent(null)}
+                  >
+                    No, cancel!
+                  </button>
                 </div>
               </div>
             </div>
@@ -1492,7 +1737,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 {selectedStudent ? (
                   <div className="teacher-selected-student-card">
                     <span className="teacher-selected-student-title">Selected</span>
-                    <span className="teacher-selected-student-name">{selectedStudent.full_name || selectedStudent.username}</span>
+                    <span className="teacher-selected-student-name">{formatStudentDisplayName(selectedStudent) || selectedStudent.username}</span>
                     <span className="teacher-selected-student-meta">
                       {selectedStudent.email} · Grade {selectedStudent.grade || '—'} {selectedStudent.strand ? `· ${selectedStudent.strand}` : ''} · Section {selectedStudent.section || '—'}
                     </span>
@@ -1788,6 +2033,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
             </p>
           </div>
           )}
+            </div>
+          </div>
         </div>
       </main>
     </div>

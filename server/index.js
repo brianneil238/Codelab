@@ -61,7 +61,7 @@ connectDb().catch((err) => {
 // Signup route
 app.post('/signup', async (req, res) => {
   try {
-    const { fullName, username, contact, birthday, age, sex, grade, strand, section, address, email, password, role, employeeNumber } = req.body;
+    const { fullName, lastName, firstName, middleName, username, contact, birthday, age, sex, grade, strand, section, address, email, password, role, employeeNumber } = req.body;
 
     const normalizedRole = (role || 'student').toLowerCase() === 'teacher' ? 'teacher' : 'student';
 
@@ -75,8 +75,15 @@ app.post('/signup', async (req, res) => {
         return res.status(400).json({ message: 'Employee number must be exactly 7 digits.' });
       }
     } else {
-      if (!fullName || !username || !birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
-        return res.status(400).json({ message: 'Please enter all fields' });
+      // Students: require Last Name, First Name (Middle Name optional)
+      const ln = (lastName || '').toString().trim();
+      const fn = (firstName || '').toString().trim();
+      const mn = (middleName || '').toString().trim();
+      if (!ln || !fn) {
+        return res.status(400).json({ message: 'Please enter Last Name and First Name' });
+      }
+      if (!username || !birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
+        return res.status(400).json({ message: 'Please enter all required fields' });
       }
     }
 
@@ -97,9 +104,17 @@ app.post('/signup', async (req, res) => {
       ? (employeeNumber ? employeeNumber.toString().replace(/\D/g, '').slice(0, 7) : '')
       : '';
 
+    // Build full_name: for students use lastName, firstName, middleName; for teachers use fullName
+    const resolvedFullName = normalizedRole === 'teacher'
+      ? (fullName || '').trim()
+      : [firstName, middleName, lastName].map((x) => (x || '').toString().trim()).filter(Boolean).join(' ');
+
     const doc = {
-      full_name: fullName,
+      full_name: resolvedFullName,
       username,
+      last_name: normalizedRole === 'student' ? (lastName || '').toString().trim() : undefined,
+      first_name: normalizedRole === 'student' ? (firstName || '').toString().trim() : undefined,
+      middle_name: normalizedRole === 'student' ? (middleName || '').toString().trim() : undefined,
       birthday: normalizedRole === 'teacher' ? (birthday ? new Date(birthday) : null) : new Date(birthday),
       age: normalizedRole === 'teacher' ? (age != null && age !== '' ? Number(age) : null) : Number(age),
       sex: normalizedRole === 'teacher' ? (sex || '') : sex,
@@ -162,6 +177,9 @@ app.post('/login', async (req, res) => {
         email: user.email,
         username: user.username,
         fullName: user.full_name,
+        lastName: user.last_name || '',
+        firstName: user.first_name || '',
+        middleName: user.middle_name || '',
         role: user.role || 'student',
         profilePhoto: user.profile_photo || null,
         birthday: birthdayVal ? (birthdayVal instanceof Date ? birthdayVal.toISOString().slice(0, 10) : String(birthdayVal).slice(0, 10)) : '',
@@ -189,6 +207,9 @@ app.patch('/users/:userId/profile', async (req, res) => {
     const {
       profilePhoto,
       fullName,
+      lastName,
+      firstName,
+      middleName,
       username,
       birthday,
       age,
@@ -212,7 +233,18 @@ app.patch('/users/:userId/profile', async (req, res) => {
     const update = {};
     if (typeof profilePhoto === 'string') update.profile_photo = profilePhoto;
     if (profilePhoto === null || profilePhoto === '') update.profile_photo = null;
-    if (typeof fullName === 'string' && fullName.trim()) update.full_name = fullName.trim();
+    // Name: accept lastName/firstName/middleName from body (so profile save always persists name)
+    if (lastName !== undefined || firstName !== undefined || middleName !== undefined) {
+      const ln = (lastName != null ? String(lastName) : '').trim();
+      const fn = (firstName != null ? String(firstName) : '').trim();
+      const mn = (middleName != null ? String(middleName) : '').trim();
+      update.full_name = [fn, mn, ln].filter(Boolean).join(' ');
+      update.last_name = ln;
+      update.first_name = fn;
+      update.middle_name = mn;
+    } else if (typeof fullName === 'string' && fullName.trim()) {
+      update.full_name = fullName.trim();
+    }
     if (typeof username === 'string' && username.trim()) {
       const existing = await users.findOne({ username: username.trim(), _id: { $ne: id } });
       if (existing) return res.status(400).json({ message: 'This username is already taken.' });
@@ -250,6 +282,9 @@ app.patch('/users/:userId/profile', async (req, res) => {
         email: u.email,
         username: u.username,
         fullName: u.full_name,
+        lastName: u.last_name || '',
+        firstName: u.first_name || '',
+        middleName: u.middle_name || '',
         role: u.role || 'student',
         profilePhoto: u.profile_photo || null,
         birthday: birthdayVal ? (birthdayVal instanceof Date ? birthdayVal.toISOString().slice(0, 10) : String(birthdayVal).slice(0, 10)) : '',
@@ -549,7 +584,7 @@ function perCourseProgressFromItems(items) {
 app.get('/teacher/class-detail', async (req, res) => {
   try {
     const studentRows = await users.find({ role: 'student' }).project({
-      _id: 1, full_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1,
+      _id: 1, full_name: 1, last_name: 1, first_name: 1, middle_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1, profile_photo: 1,
     }).sort({ created_at: -1 }).toArray();
     const studentIds = studentRows.map((r) => r._id.toString());
     if (studentIds.length === 0) {
@@ -578,11 +613,15 @@ app.get('/teacher/class-detail', async (req, res) => {
       return {
         id,
         full_name: r.full_name,
+        last_name: r.last_name || '',
+        first_name: r.first_name || '',
+        middle_name: r.middle_name || '',
         username: r.username,
         email: r.email,
         grade: r.grade,
         strand: r.strand,
         section: r.section,
+        profile_photo: r.profile_photo || null,
         overallProgress: overall,
         htmlProgress: courses['HTML'],
         cppProgress: courses['C++'],
@@ -921,18 +960,22 @@ app.get('/students', async (req, res) => {
   try {
     const cursor = users
       .find({ role: 'student' })
-      .project({ full_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1, created_at: 1 })
+      .project({ full_name: 1, last_name: 1, first_name: 1, middle_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1, created_at: 1, profile_photo: 1 })
       .sort({ created_at: -1 });
     const rows = await cursor.toArray();
     const students = rows.map((r) => ({
       id: r._id.toString(),
       full_name: r.full_name,
+      last_name: r.last_name || '',
+      first_name: r.first_name || '',
+      middle_name: r.middle_name || '',
       username: r.username,
       email: r.email,
       grade: r.grade,
       strand: r.strand,
       section: r.section,
       created_at: r.created_at,
+      profile_photo: r.profile_photo || null,
     }));
     res.status(200).json({ students });
   } catch (error) {
@@ -1056,6 +1099,38 @@ async function updateUserStreak(userId) {
     console.error('Update streak error:', error);
   }
 }
+
+// Delete student (teacher): remove student and all related data from DB
+app.delete('/users/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ message: 'User id required' });
+    let oid;
+    try {
+      oid = new ObjectId(id);
+    } catch {
+      return res.status(400).json({ message: 'Invalid user id' });
+    }
+    const user = await users.findOne({ _id: oid });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if ((user.role || 'student').toLowerCase() !== 'student') {
+      return res.status(403).json({ message: 'Only students can be deleted from this endpoint' });
+    }
+    const userId = id;
+    await Promise.all([
+      users.deleteOne({ _id: oid }),
+      userProgress.deleteMany({ user_id: userId }),
+      userStreaks.deleteMany({ user_id: userId }),
+      userAchievements.deleteMany({ user_id: userId }),
+      userStats.deleteMany({ user_id: userId }),
+      teacherNotes.deleteMany({ student_id: userId }),
+    ]);
+    res.status(200).json({ message: 'Student deleted successfully', id: userId });
+  } catch (error) {
+    console.error('Delete student error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Delete user (testing)
 app.delete('/delete-user/:email', async (req, res) => {

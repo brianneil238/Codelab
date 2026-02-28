@@ -19,6 +19,9 @@ function App() {
   const [currentCourse, setCurrentCourse] = useState(null);
   const [formData, setFormData] = useState({
     fullName: '',
+    lastName: '',
+    firstName: '',
+    middleName: '',
     username: '',
     contact: '',
     birthday: '',
@@ -126,6 +129,11 @@ function App() {
                     const digits = String(formData.employeeNumber).replace(/\D/g, '').slice(0, 7);
                     payload.employeeNumber = digits;
                   }
+                }
+                if (role === 'student') {
+                  payload.lastName = (formData.lastName || '').trim();
+                  payload.firstName = (formData.firstName || '').trim();
+                  payload.middleName = (formData.middleName || '').trim();
                 }
                 return payload;
               })()
@@ -257,6 +265,9 @@ function App() {
     } catch {}
     setFormData({
       fullName: '',
+      lastName: '',
+      firstName: '',
+      middleName: '',
       username: '',
       contact: '',
       birthday: '',
@@ -522,7 +533,17 @@ function App() {
                 <div className="form-row">
                   <div className="input-group">
                     <i className="fas fa-user"></i>
-                    <input type="text" placeholder="Full Name" name="fullName" value={formData.fullName} onChange={handleInputChange} required />
+                    <input type="text" placeholder="Last Name" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
+                  </div>
+                  <div className="input-group">
+                    <i className="fas fa-user"></i>
+                    <input type="text" placeholder="First Name" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="input-group">
+                    <i className="fas fa-user"></i>
+                    <input type="text" placeholder="Middle Name" name="middleName" value={formData.middleName} onChange={handleInputChange} />
                   </div>
                   <div className="input-group">
                     <i className="fas fa-at"></i>
