@@ -209,7 +209,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                 {user.profilePhoto ? (
                   <img src={user.profilePhoto} alt="" className="user-avatar-img" />
                 ) : (
-                  <div className="user-avatar">{initial}</div>
+                  <div className="user-avatar user-avatar-placeholder" aria-hidden>{initial.toUpperCase()}</div>
                 )}
                 <span className="user-name">{user.username || user.fullName}</span>
                 <span className="profile-dropdown-chevron" aria-hidden>▼</span>
@@ -282,7 +282,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                   ) : user.profilePhoto ? (
                     <img src={user.profilePhoto} alt="" />
                   ) : (
-                    <div className="user-avatar">{initial}</div>
+                    <div className="user-avatar user-avatar-placeholder">{initial.toUpperCase()}</div>
                   )}
                 </div>
                 <input

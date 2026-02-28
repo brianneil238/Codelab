@@ -123,7 +123,7 @@ app.post('/signup', async (req, res) => {
       section: normalizedRole === 'teacher' ? (section || '') : section,
       address: normalizedRole === 'teacher' ? (address || '') : address,
       contact: normalizedRole === 'teacher' ? '' : normalizedContact,
-      employee_number: normalizedRole === 'teacher' ? normalizedEmployeeNumber : '',
+      ...(normalizedRole === 'teacher' ? { employee_number: normalizedEmployeeNumber } : {}),
       email,
       password: hashedPassword,
       role: normalizedRole,

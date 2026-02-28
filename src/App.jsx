@@ -47,6 +47,7 @@ function App() {
   const [forgotStatus, setForgotStatus] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [userType, setUserType] = useState('student'); // 'student' | 'teacher'
+  const [emptyFieldNames, setEmptyFieldNames] = useState([]); // highlight these when "Please enter all fields" etc.
   const [darkMode, setDarkMode] = useState(() => {
     try { return localStorage.getItem('codelab-dark') === 'true'; } catch { return false; }
   });
@@ -105,6 +106,7 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
+    setEmptyFieldNames([]);
 
     // Use the same baseUrl logic as ProgressContext
     const endpoint = `${baseUrl}${isLogin ? '/login' : '/signup'}`;
@@ -182,6 +184,10 @@ function App() {
           setMessage(''); // Clear the regular message
         } else {
           setMessage(data.message || data.error || 'An error occurred');
+          const msg = (data.message || data.error || '').toLowerCase();
+          if (!isLogin && (msg.includes('all required fields') || msg.includes('enter full name') || msg.includes('last name and first name') || msg.includes('employee number'))) {
+            setEmptyFieldNames(getEmptyRequiredFields(formData, userType));
+          }
         }
       }
     } catch (error) {
@@ -198,6 +204,7 @@ function App() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    setEmptyFieldNames(prev => prev.filter(n => n !== name));
     setFormData(prev => {
       const next = { ...prev, [name]: value };
       if (name === 'grade' && ['7', '8', '9', '10'].includes(value)) next.strand = '';
@@ -206,6 +213,35 @@ function App() {
       }
       return next;
     });
+  };
+
+  const getEmptyRequiredFields = (data, role) => {
+    const empty = [];
+    if (role === 'teacher') {
+      if (!(data.fullName || '').trim()) empty.push('fullName');
+      if (!(data.username || '').trim()) empty.push('username');
+      if (!(data.email || '').trim()) empty.push('email');
+      if (!(data.password || '').trim()) empty.push('password');
+      const emp = (data.employeeNumber || '').toString().replace(/\D/g, '');
+      if (!emp || emp.length !== 7) empty.push('employeeNumber');
+      return empty;
+    }
+    if (!(data.lastName || '').trim()) empty.push('lastName');
+    if (!(data.firstName || '').trim()) empty.push('firstName');
+    if (!(data.username || '').trim()) empty.push('username');
+    if (!(data.contact || '').toString().trim()) empty.push('contact');
+    if (!(data.birthday || '').trim()) empty.push('birthday');
+    if (data.age === '' || data.age == null) empty.push('age');
+    if (!(data.sex || '').trim()) empty.push('sex');
+    if (!(data.grade || '').trim()) empty.push('grade');
+    if (data.grade === '11' || data.grade === '12') {
+      if (!(data.strand || '').trim()) empty.push('strand');
+    }
+    if (!(data.section || '').trim()) empty.push('section');
+    if (!(data.address || '').trim()) empty.push('address');
+    if (!(data.email || '').trim()) empty.push('email');
+    if (!(data.password || '').trim()) empty.push('password');
+    return empty;
   };
 
   const showStrand = formData.grade === '11' || formData.grade === '12';
@@ -283,6 +319,7 @@ function App() {
       employeeNumber: '',
     });
     setMessage('');
+    setEmptyFieldNames([]);
   };
 
   const handleCourseSelect = (course) => {
@@ -442,14 +479,14 @@ function App() {
                 <button
                   type="button"
                   className={`role-tab ${userType === 'student' ? 'role-tab-active' : ''}`}
-                  onClick={() => { setUserType('student'); setMessage(''); setShowForgotPassword(false); }}
+                  onClick={() => { setUserType('student'); setMessage(''); setEmptyFieldNames([]); setShowForgotPassword(false); }}
                 >
                   Student
                 </button>
                 <button
                   type="button"
                   className={`role-tab ${userType === 'teacher' ? 'role-tab-active' : ''}`}
-                  onClick={() => { setUserType('teacher'); setMessage(''); setShowForgotPassword(false); }}
+                  onClick={() => { setUserType('teacher'); setMessage(''); setEmptyFieldNames([]); setShowForgotPassword(false); }}
                 >
                   Teacher
                 </button>
@@ -464,17 +501,17 @@ function App() {
               <div className="teacher-signup-ui">
                 <p className="form-section-title teacher-section-title">Create teacher account</p>
                 <div className="form-row">
-                  <div className="input-group teacher-input">
+                  <div className={`input-group teacher-input ${emptyFieldNames.includes('fullName') ? 'field-error' : ''}`}>
                     <i className="fas fa-user"></i>
                     <input type="text" placeholder="Full Name" name="fullName" value={formData.fullName} onChange={handleInputChange} required />
                   </div>
-                  <div className="input-group teacher-input">
+                  <div className={`input-group teacher-input ${emptyFieldNames.includes('username') ? 'field-error' : ''}`}>
                     <i className="fas fa-at"></i>
                     <input type="text" placeholder="Username" name="username" value={formData.username} onChange={handleInputChange} required />
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="input-group teacher-input">
+                  <div className={`input-group teacher-input ${emptyFieldNames.includes('employeeNumber') ? 'field-error' : ''}`}>
                     <i className="fas fa-id-badge"></i>
                     <input
                       type="text"
@@ -531,11 +568,11 @@ function App() {
               <>
                 <p className="form-section-title">Personal</p>
                 <div className="form-row">
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('lastName') ? 'field-error' : ''}`}>
                     <i className="fas fa-user"></i>
                     <input type="text" placeholder="Last Name" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
                   </div>
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('firstName') ? 'field-error' : ''}`}>
                     <i className="fas fa-user"></i>
                     <input type="text" placeholder="First Name" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
                   </div>
@@ -545,13 +582,13 @@ function App() {
                     <i className="fas fa-user"></i>
                     <input type="text" placeholder="Middle Name" name="middleName" value={formData.middleName} onChange={handleInputChange} />
                   </div>
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('username') ? 'field-error' : ''}`}>
                     <i className="fas fa-at"></i>
                     <input type="text" placeholder="Username" name="username" value={formData.username} onChange={handleInputChange} required />
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('contact') ? 'field-error' : ''}`}>
                     <i className="fas fa-phone"></i>
                     <input
                       type="tel"
@@ -564,17 +601,17 @@ function App() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('birthday') ? 'field-error' : ''}`}>
                     <i className="fas fa-calendar"></i>
                     <input type="date" placeholder="Birthday" name="birthday" value={formData.birthday} onChange={handleInputChange} required />
                   </div>
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('age') ? 'field-error' : ''}`}>
                     <i className="fas fa-birthday-cake"></i>
                     <input type="number" placeholder="Age" name="age" value={formData.age} onChange={handleInputChange} required />
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('sex') ? 'field-error' : ''}`}>
                     <i className="fas fa-venus-mars"></i>
                     <select name="sex" value={formData.sex} onChange={handleInputChange} required>
                       <option value="">Select Sex</option>
@@ -582,14 +619,14 @@ function App() {
                       <option value="Female">Female</option>
                     </select>
                   </div>
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('address') ? 'field-error' : ''}`}>
                     <i className="fas fa-map-marker-alt"></i>
                     <input type="text" placeholder="Address" name="address" value={formData.address} onChange={handleInputChange} required />
                   </div>
                 </div>
                 <p className="form-section-title">School</p>
                 <div className="form-row">
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('grade') ? 'field-error' : ''}`}>
                     <i className="fas fa-graduation-cap"></i>
                     <select name="grade" value={formData.grade} onChange={handleInputChange} required>
                       <option value="">Select Grade</option>
@@ -599,7 +636,7 @@ function App() {
                     </select>
                   </div>
                   {showStrand ? (
-                    <div className="input-group">
+                    <div className={`input-group ${emptyFieldNames.includes('strand') ? 'field-error' : ''}`}>
                       <i className="fas fa-book"></i>
                       <select name="strand" value={formData.strand} onChange={handleInputChange} required>
                         <option value="">Select Strand</option>
@@ -616,7 +653,7 @@ function App() {
                   )}
                 </div>
                 <div className="form-single">
-                  <div className="input-group">
+                  <div className={`input-group ${emptyFieldNames.includes('section') ? 'field-error' : ''}`}>
                     <i className="fas fa-users"></i>
                     <input type="text" placeholder="Section" name="section" value={formData.section} onChange={handleInputChange} required />
                   </div>
@@ -626,7 +663,7 @@ function App() {
             )}
             {isLogin && <p className="form-section-title">Account</p>}
             <div className="form-row auth-row">
-              <div className="input-group">
+              <div className={`input-group ${emptyFieldNames.includes('email') ? 'field-error' : ''}`}>
                 <i className="fas fa-envelope"></i>
                 <input 
                   type="email" 
@@ -637,7 +674,7 @@ function App() {
                   required
                 />
               </div>
-              <div className="input-group password-group">
+              <div className={`input-group password-group ${emptyFieldNames.includes('password') ? 'field-error' : ''}`}>
                 <i className="fas fa-lock"></i>
                 <input 
                   type={showPassword ? 'text' : 'password'}
@@ -731,7 +768,7 @@ function App() {
               {isLogin
                 ? (userType === 'teacher' ? "Don't have a teacher account?" : "Don't have an account?")
                 : (userType === 'teacher' ? "Already have a teacher account?" : "Already have an account?")}
-              <a href="#" className="signup-link" onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); setMessage(''); }}>
+              <a href="#" className="signup-link" onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); setMessage(''); setEmptyFieldNames([]); }}>
                 {isLogin ? 'Sign Up' : 'Log In'}
               </a>
             </p>

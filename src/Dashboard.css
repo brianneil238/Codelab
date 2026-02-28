@@ -152,15 +152,20 @@
   height: 35px;
   border-radius: 50%;
   display: block;
+  flex-shrink: 0;
 }
 .user-avatar {
-  background: #4CAF50;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1rem;
+  background: #4CAF50;
+}
+.user-avatar-placeholder {
+  background: #5b636e;
+  color: #fff;
 }
 .user-avatar-img {
   object-fit: cover;
@@ -315,7 +320,7 @@
 @media (max-width: 768px) {
   .header-content {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
@@ -328,6 +333,7 @@
     transform: none;
     left: auto;
     top: auto;
+    margin-right: auto;
   }
   
   .user-section {
@@ -335,15 +341,36 @@
     transform: none;
     right: auto;
     top: auto;
+    margin-left: auto;
   }
 
   .user-profile {
     gap: 0.5rem;
   }
 
-  .user-name,
-  .user-avatar {
+  .user-name {
     display: none;
+  }
+
+  .profile-trigger {
+    min-height: 44px;
+    padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+  }
+
+  .user-avatar,
+  .user-avatar-img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .user-avatar {
+    font-size: 1.1rem;
+  }
+
+  .profile-dropdown {
+    min-width: 200px;
+    right: 0;
+    z-index: 1000;
   }
 
   .logo-text {
@@ -2753,6 +2780,10 @@
 .dashboard-dark .profile-dropdown-item-logout:hover { background: #3d2626; color: #fca5a5; }
 .dashboard-dark .profile-dropdown-chevron { color: #9ca3af; }
 .dashboard-dark .user-name { color: #e5e7eb; }
+.dashboard-dark .user-avatar-placeholder {
+  background: #4b5563;
+  color: #e5e7eb;
+}
 .dashboard-dark .welcome-section h2 { color: #81c784; }
 .dashboard-dark .welcome-section p { color: #9ca3af; }
 .dashboard-dark .progress-overview { background: #1e231e; }
