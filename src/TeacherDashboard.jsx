@@ -1494,7 +1494,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                       {studentsModalGroups.map((grp) => (
                         <section key={grp.label} className="teacher-student-group-block">
                           <h4 className="teacher-student-group-title">{grp.label}</h4>
-                          <div className="teacher-attention-table-wrap">
+                          <div className="teacher-attention-table-wrap teacher-students-modal-table-wrap">
                             <table className="teacher-attention-table teacher-attention-table-students teacher-attention-table-has-action">
                               <thead>
                                 <tr>
