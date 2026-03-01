@@ -8,9 +8,8 @@ import Achievements, { getAchievementTitle } from './Achievements';
 import Challenges from './Challenges';
 import FAQ from './FAQ';
 import { ProgressProvider } from './ProgressContext';
-// BSU logo removed from login page header per request
-// import logo from './assets/batangas_state_u_logo.png';
-import bikeRentalLogo from './assets/university_bike_rental_logo.png'; // Assuming you'll add this logo
+import bikeRentalLogo from './assets/university_bike_rental_logo.png';
+import schoolLogo from './assets/school-logo.png';
 
 function App() {
   const [isLogin, setIsLogin] = useState(true);
@@ -465,8 +464,19 @@ function App() {
           <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>
         )}
           <div className="login-container">
+          <div className="login-school-section">
+            <div className="school-logo-wrap">
+              <div className="school-logo-frame">
+                <img src={schoolLogo} alt="Padre Garcia Integrated National High School" className="school-logo" />
+              </div>
+              <div className="school-name">
+                <span className="school-name-line">Padre Garcia Integrated</span>
+                <span className="school-name-line school-name-bottom">National High School</span>
+              </div>
+              <p className="school-motto">Faith · Honor · Wisdom</p>
+            </div>
+          </div>
           <div className="login-form-section">
-            {/* Logo section removed */}
             <div className="form-content">
               <div className="university-bike-rental-header">
                 <img src={bikeRentalLogo} alt="CodeLab Logo" className="bike-rental-logo" />

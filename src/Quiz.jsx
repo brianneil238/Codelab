@@ -221,7 +221,7 @@ function Quiz({ course, lecture, onBack, onComplete }) {
           <h1>Quiz Results</h1>
         </div>
         <div className="quiz-content">
-          <div className="quiz-results">
+          <div className={`quiz-results ${passed ? '' : 'failed'}`}>
             <div className={`score-circle ${passed ? 'passed' : 'failed'}`}>
               <span className="score-number">{score}</span>
               <span className="score-total">/{currentQuiz.length}</span>

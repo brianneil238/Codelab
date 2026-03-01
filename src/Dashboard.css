@@ -702,10 +702,20 @@
 
 .course-progress .progress-bar {
   height: 6px;
+  margin-bottom: 0.5rem;
 }
 
 .course-progress .progress-fill {
   background: linear-gradient(90deg, #4CAF50, #45a049);
+}
+
+.course-progress .progress-breakdown {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: 1.4;
 }
 
 .progress-breakdown {

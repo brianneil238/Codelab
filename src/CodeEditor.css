@@ -277,9 +277,10 @@
   padding: 0.8rem 1.2rem;
 }
 
-.debug-hints h4 { margin: 0 0 0.4rem 0; color: #8d6e63; font-size: 0.95rem; }
-.debug-hints ul { margin: 0; padding-left: 1.2rem; color: #6d4c41; font-size: 0.9rem; }
-.debug-hints li { margin-bottom: 0.25rem; }
+.debug-hints h4 { margin: 0 0 0.25rem 0; color: #8d6e63; font-size: 0.95rem; }
+.debug-hints-intro { margin: 0 0 0.5rem 0; color: #6d4c41; font-size: 0.85rem; }
+.debug-hints ul { margin: 0; padding-left: 1.2rem; color: #6d4c41; font-size: 0.9rem; line-height: 1.45; }
+.debug-hints li { margin-bottom: 0.35rem; }
 
 .editor-tips h4 {
   margin: 0 0 0.5rem 0;
@@ -391,6 +392,7 @@
   border-top: 1px solid #404040;
 }
 .code-editor.code-editor-dark .debug-hints h4 { color: #81c784 !important; }
+.code-editor.code-editor-dark .debug-hints-intro { color: #9ca3af !important; }
 .code-editor.code-editor-dark .debug-hints ul,
 .code-editor.code-editor-dark .debug-hints li { color: #d1d5db !important; }
 
