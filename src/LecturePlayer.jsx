@@ -84,11 +84,15 @@ function LecturePlayer({ lecture, course, onBack, darkMode = false }) {
   const [showEditor, setShowEditor] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const { markLectureComplete, markQuizComplete, getLectureProgress, addCodeLinesWritten } = useProgress();
+  const { markLectureComplete, markQuizComplete, getLectureProgress, getQuizProgress, addCodeLinesWritten } = useProgress();
   
   // Check if lecture is already completed
   const lectureProgress = getLectureProgress(course, lecture.id);
   const isLectureCompleted = lectureProgress.completed;
+  // Must take quiz before marking lecture complete
+  const quizProgress = getQuizProgress(course, lecture.id);
+  const hasTakenQuiz = quizProgress.completed;
+  const canMarkComplete = hasTakenQuiz;
   // Each lecture = one short video. Add video ID, then adjust title and content to match the video.
   // lectureVideos: paste YouTube video ID (from ?v=VIDEO_ID) for each lecture.
   // lectureContent: add { title: '...', content: '<p>...</p>' } per lecture to match what the video teaches.
@@ -214,6 +218,7 @@ function LecturePlayer({ lecture, course, onBack, darkMode = false }) {
   };
 
   const handleMarkComplete = () => {
+    if (!canMarkComplete) return;
     setIsCompleted(true);
     markLectureComplete(course, lecture.id);
     alert('Lecture marked as complete! 🎉');
@@ -330,10 +335,12 @@ Date: ${new Date().toLocaleDateString()}
               {showEditor ? 'Hide Editor' : 'Try it yourself'}
             </button>
             <button 
-              className={`lecture-btn ${isCompleted || isLectureCompleted ? 'completed' : 'secondary'}`}
+              className={`lecture-btn ${isCompleted || isLectureCompleted ? 'completed' : 'secondary'} ${!canMarkComplete ? 'lecture-btn-disabled' : ''}`}
               onClick={handleMarkComplete}
+              disabled={!canMarkComplete}
+              title={!canMarkComplete ? 'Take the quiz first to mark as complete' : undefined}
             >
-              {isCompleted || isLectureCompleted ? '✓ Completed' : 'Mark as Complete'}
+              {isCompleted || isLectureCompleted ? '✓ Completed' : !canMarkComplete ? 'Mark as Complete (take quiz first)' : 'Mark as Complete'}
             </button>
             <button 
               className="lecture-btn secondary"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CodeEditor from './CodeEditor';
 import { useProgress } from './ProgressContext';
 import './EditorWorkspace.css';
@@ -10,6 +10,8 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
   const [code, setCode] = useState('');
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [completedChallengeIds, setCompletedChallengeIds] = useState(new Set());
+  const [openGroups, setOpenGroups] = useState(new Set(['Python-Beginner', 'Python-Intermediate', 'Python-Hard', 'C++-Beginner', 'C++-Intermediate', 'C++-Hard']));
 
   const baseUrl = import.meta.env.DEV
     ? '/api'
@@ -49,6 +51,45 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
         output: '8\n',
       },
     },
+    'py-input-name': {
+      id: 'py-input-name',
+      title: 'Python: Greet by Name',
+      language: 'Python',
+      difficulty: 'Beginner',
+      description:
+        'Read a name from input (one line) and print exactly: Hello, {name}! (use the input value in place of {name}).',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: 'CodeLab\n',
+        output: 'Hello, CodeLab!\n',
+      },
+    },
+    'py-area': {
+      id: 'py-area',
+      title: 'Python: Area of Rectangle',
+      language: 'Python',
+      difficulty: 'Beginner',
+      description:
+        'Read two integers (width and height) from input on one line separated by a space. Print the area (width * height).',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '4 5\n',
+        output: '20\n',
+      },
+    },
+    'py-division': {
+      id: 'py-division',
+      title: 'Python: Quotient and Remainder',
+      language: 'Python',
+      difficulty: 'Beginner',
+      description:
+        'Read two integers a and b from input (one line, space-separated). Print the quotient (a // b) and remainder (a % b) on one line, space-separated.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '17 5\n',
+        output: '3 2\n',
+      },
+    },
     'py-conditions': {
       id: 'py-conditions',
       title: 'Python: Even or Odd',
@@ -60,6 +101,45 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
       expectedOutputForInput: {
         input: '4\n',
         output: 'Even\n',
+      },
+    },
+    'py-list-sum': {
+      id: 'py-list-sum',
+      title: 'Python: Sum of N Numbers',
+      language: 'Python',
+      difficulty: 'Intermediate',
+      description:
+        'Read an integer N, then N integers (one per line). Print their sum.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '3\n10\n20\n30\n',
+        output: '60\n',
+      },
+    },
+    'py-fizzbuzz': {
+      id: 'py-fizzbuzz',
+      title: 'Python: FizzBuzz',
+      language: 'Python',
+      difficulty: 'Intermediate',
+      description:
+        'Read one integer N. Print the numbers 1 to N, one per line. For multiples of 3 print "Fizz", for multiples of 5 print "Buzz", for multiples of both print "FizzBuzz".',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '5\n',
+        output: '1\n2\nFizz\n4\nBuzz\n',
+      },
+    },
+    'py-reverse': {
+      id: 'py-reverse',
+      title: 'Python: Reverse a String',
+      language: 'Python',
+      difficulty: 'Intermediate',
+      description:
+        'Read one line of text and print the string reversed.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: 'hello\n',
+        output: 'olleh\n',
       },
     },
     'cpp-sum': {
@@ -88,6 +168,42 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
         output: '7\n',
       },
     },
+    'cpp-hello': {
+      id: 'cpp-hello',
+      title: 'C++: Hello World',
+      language: 'C++',
+      difficulty: 'Beginner',
+      description:
+        'Print exactly: Hello, World! (including punctuation).',
+      starterCode: '',
+      expectedOutput: 'Hello, World!\n',
+    },
+    'cpp-double': {
+      id: 'cpp-double',
+      title: 'C++: Double the Number',
+      language: 'C++',
+      difficulty: 'Beginner',
+      description:
+        'Read one integer from input and print its double.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '21\n',
+        output: '42\n',
+      },
+    },
+    'cpp-min': {
+      id: 'cpp-min',
+      title: 'C++: Minimum of Two',
+      language: 'C++',
+      difficulty: 'Beginner',
+      description:
+        'Read two integers and print the smaller one. If equal, print either.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '7 2\n',
+        output: '2\n',
+      },
+    },
     'cpp-loop': {
       id: 'cpp-loop',
       title: 'C++: Print 1 to N',
@@ -101,9 +217,175 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
         output: '1\n2\n3\n',
       },
     },
+    'cpp-factorial': {
+      id: 'cpp-factorial',
+      title: 'C++: Factorial',
+      language: 'C++',
+      difficulty: 'Intermediate',
+      description:
+        'Read a non-negative integer N and print N! (factorial). Assume N ≤ 12.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '5\n',
+        output: '120\n',
+      },
+    },
+    'cpp-prime': {
+      id: 'cpp-prime',
+      title: 'C++: Prime or Not',
+      language: 'C++',
+      difficulty: 'Intermediate',
+      description:
+        'Read one integer N (≥ 2). If N is prime, print "Prime". Otherwise print "Not Prime".',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '7\n',
+        output: 'Prime\n',
+      },
+    },
+    'cpp-array-sum': {
+      id: 'cpp-array-sum',
+      title: 'C++: Sum of N Numbers',
+      language: 'C++',
+      difficulty: 'Intermediate',
+      description:
+        'Read an integer N, then N integers (one per line). Print their sum.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '3\n10\n20\n30\n',
+        output: '60\n',
+      },
+    },
+    'py-palindrome': {
+      id: 'py-palindrome',
+      title: 'Python: Palindrome Check',
+      language: 'Python',
+      difficulty: 'Hard',
+      description:
+        'Read one line of text (letters only, case-insensitive). Print "Yes" if it is a palindrome, otherwise "No".',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: 'racecar\n',
+        output: 'Yes\n',
+      },
+    },
+    'py-vowels': {
+      id: 'py-vowels',
+      title: 'Python: Count Vowels',
+      language: 'Python',
+      difficulty: 'Hard',
+      description:
+        'Read one line of text. Print the number of vowels (a, e, i, o, u), counting both uppercase and lowercase.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: 'Hello World\n',
+        output: '3\n',
+      },
+    },
+    'py-second-max': {
+      id: 'py-second-max',
+      title: 'Python: Second Largest',
+      language: 'Python',
+      difficulty: 'Hard',
+      description:
+        'Read an integer N (≥ 2), then N distinct integers (one per line). Print the second largest value.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '4\n10\n30\n20\n5\n',
+        output: '20\n',
+      },
+    },
+    'cpp-gcd': {
+      id: 'cpp-gcd',
+      title: 'C++: Greatest Common Divisor',
+      language: 'C++',
+      difficulty: 'Hard',
+      description:
+        'Read two positive integers a and b (one line, space-separated). Print their GCD.',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '48 18\n',
+        output: '6\n',
+      },
+    },
+    'cpp-fibonacci': {
+      id: 'cpp-fibonacci',
+      title: 'C++: Nth Fibonacci',
+      language: 'C++',
+      difficulty: 'Hard',
+      description:
+        'Read a positive integer N (1 ≤ N ≤ 20). Print the Nth Fibonacci number (F1=1, F2=1, F3=2, ...).',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '7\n',
+        output: '13\n',
+      },
+    },
+    'cpp-palindrome-num': {
+      id: 'cpp-palindrome-num',
+      title: 'C++: Palindrome Number',
+      language: 'C++',
+      difficulty: 'Hard',
+      description:
+        'Read one positive integer. Print "Yes" if it is a palindrome (reads same forwards and backwards), otherwise "No".',
+      starterCode: '',
+      expectedOutputForInput: {
+        input: '121\n',
+        output: 'Yes\n',
+      },
+    },
   };
 
   const current = challenges[selectedChallengeId];
+
+  // Group challenges by language + difficulty (e.g. Python-Beginner, C++-Intermediate)
+  const groupOrder = ['Python-Beginner', 'Python-Intermediate', 'Python-Hard', 'C++-Beginner', 'C++-Intermediate', 'C++-Hard'];
+  const challengesByGroup = React.useMemo(() => {
+    const map = {};
+    Object.values(challenges).forEach((ch) => {
+      const key = `${ch.language}-${ch.difficulty}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(ch);
+    });
+    return map;
+  }, []);
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const getShortTitle = (ch) => {
+    return (ch.title || '')
+      .replace(/^Python:\s*/i, '')
+      .replace(/^C\+\+:\s*/i, '');
+  };
+
+  // Load which challenges are completed (from achievements)
+  useEffect(() => {
+    if (!user?.id || !baseUrl) return;
+    const loadCompleted = async () => {
+      try {
+        const res = await fetch(`${baseUrl}/achievements/${user.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = data.achievements || [];
+        const ids = new Set(
+          list
+            .filter((a) => (a.key || '').startsWith('challenge:'))
+            .map((a) => (a.key || '').replace(/^challenge:/, ''))
+        );
+        setCompletedChallengeIds(ids);
+      } catch (e) {
+        // ignore
+      }
+    };
+    loadCompleted();
+  }, [user?.id, baseUrl]);
 
   const handleSelect = (id) => {
     const ch = challenges[id];
@@ -187,6 +469,7 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
       }
 
       if (passed && user?.id && baseUrl) {
+        setCompletedChallengeIds((prev) => new Set([...prev, current.id]));
         try {
           const achRes = await fetch(`${baseUrl}/achievements`, {
             method: 'POST',
@@ -237,25 +520,44 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
       <div className="editor-layout">
         <aside className="editor-sidebar">
           <h4>Challenges</h4>
-          <ul className="challenge-list">
-            {Object.values(challenges).map((ch) => (
-              <li
-                key={ch.id}
-                className={
-                  ch.id === selectedChallengeId
-                    ? 'challenge-item active'
-                    : 'challenge-item'
-                }
-                onClick={() => handleSelect(ch.id)}
-              >
-                <div className="challenge-title">{ch.title}</div>
-                <div className="challenge-meta">
-                  <span>{ch.language}</span>
-                  <span>{ch.difficulty}</span>
+          <div className="challenge-groups">
+            {groupOrder.map((groupKey) => {
+              const list = challengesByGroup[groupKey] || [];
+              if (list.length === 0) return null;
+              const [lang, difficulty] = groupKey.split('-');
+              const label = `${lang} ${difficulty} Challenge`;
+              const isOpen = openGroups.has(groupKey);
+              return (
+                <div key={groupKey} className="challenge-group">
+                  <button
+                    type="button"
+                    className={`challenge-group-header ${isOpen ? 'open' : ''}`}
+                    onClick={() => toggleGroup(groupKey)}
+                    aria-expanded={isOpen}
+                  >
+                    <span>{label}</span>
+                    <span className="challenge-group-chevron" aria-hidden>{isOpen ? '▼' : '▶'}</span>
+                  </button>
+                  {isOpen && (
+                    <ul className="challenge-list">
+                      {list.map((ch) => {
+                        const isCompleted = completedChallengeIds.has(ch.id);
+                        return (
+                          <li
+                            key={ch.id}
+                            className={`challenge-item ${ch.id === selectedChallengeId ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                            onClick={() => handleSelect(ch.id)}
+                          >
+                            <span className="challenge-title">{getShortTitle(ch)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
-              </li>
-            ))}
-          </ul>
+              );
+            })}
+          </div>
         </aside>
 
         <main className="editor-main">

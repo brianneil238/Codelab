@@ -4,7 +4,7 @@ import Dashboard from './Dashboard';
 import TeacherDashboard from './TeacherDashboard';
 import CourseLecture from './CourseLecture';
 import EditorWorkspace from './EditorWorkspace';
-import Achievements, { getAchievementTitle } from './Achievements';
+import Achievements, { getAchievementTitle, getAchievementXp } from './Achievements';
 import Challenges from './Challenges';
 import FAQ from './FAQ';
 import { ProgressProvider } from './ProgressContext';
@@ -38,7 +38,7 @@ function App() {
   const [message, setMessage] = useState('');
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success', achievementKey: null });
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
@@ -98,8 +98,12 @@ function App() {
 
   const showAchievementToast = (achievementKey) => {
     const title = getAchievementTitle(achievementKey);
-    setToast({ visible: true, message: `Achievement unlocked: ${title}`, type: 'achievement' });
-    setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 4500);
+    setToast({ visible: true, message: `Achievement unlocked: ${title}`, type: 'achievement', achievementKey });
+    setTimeout(() => setToast((t) => ({ ...t, visible: false, message: '', type: 'success', achievementKey: null })), 4500);
+  };
+
+  const dismissAchievementPopup = () => {
+    setToast((t) => ({ ...t, visible: false, message: '', type: 'success', achievementKey: null }));
   };
 
   const handleSubmit = async (e) => {
@@ -355,7 +359,18 @@ function App() {
     if (currentCourse === 'EDITOR') {
       return (
         <>
-          {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+          {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
           <ProgressProvider user={user} onAchievementUnlocked={showAchievementToast}>
             <EditorWorkspace onBack={handleBackToDashboard} darkMode={darkMode} />
           </ProgressProvider>
@@ -367,7 +382,18 @@ function App() {
     if (currentCourse === 'CHALLENGES') {
       return (
         <>
-          {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+          {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
           <ProgressProvider user={user} onAchievementUnlocked={showAchievementToast}>
             <Challenges onBack={handleBackToDashboard} darkMode={darkMode} user={user} onAchievementUnlocked={showAchievementToast} />
           </ProgressProvider>
@@ -379,7 +405,18 @@ function App() {
     if (currentCourse === 'ACHIEVEMENTS') {
       return (
         <>
-          {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+          {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
           <ProgressProvider user={user} onAchievementUnlocked={showAchievementToast}>
             <div className={`achievements-page${darkMode ? ' achievements-page-dark' : ''}`} style={{ padding: '1rem', minHeight: '100vh' }}>
               <button className="logout-btn" onClick={handleBackToDashboard}>← Back</button>
@@ -395,7 +432,18 @@ function App() {
     if (currentCourse === 'FAQ') {
       return (
         <>
-          {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+          {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
           <FAQ onBack={handleBackToDashboard} darkMode={darkMode} />
           <button type="button" className={`faq-fab ${darkMode ? 'faq-fab-dark' : ''}`} onClick={() => setShowFaqModal(true)} aria-label="Open FAQ" title="FAQ">?</button>
           {showFaqModal && (<div className="faq-modal-overlay" onClick={() => setShowFaqModal(false)}><div className={`faq-modal-box ${darkMode ? 'faq-modal-box-dark' : ''}`} onClick={(e) => e.stopPropagation()}><FAQ variant="modal" onBack={() => setShowFaqModal(false)} darkMode={darkMode} /></div></div>)}
@@ -404,7 +452,18 @@ function App() {
     }
     return (
       <>
-        {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+        {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
         <ProgressProvider user={user} onAchievementUnlocked={showAchievementToast}>
           <CourseLecture course={currentCourse} onBack={handleBackToDashboard} darkMode={darkMode} />
         </ProgressProvider>
@@ -419,7 +478,18 @@ function App() {
     if (user.role === 'teacher') {
       return (
         <>
-          {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+          {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
           <TeacherDashboard
             user={user}
             onLogout={handleLogout}
@@ -433,7 +503,18 @@ function App() {
     }
     return (
       <>
-        {toast.visible && <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>}
+        {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
         <ProgressProvider user={user} onAchievementUnlocked={showAchievementToast}>
           <Dashboard user={user} onLogout={handleLogout} onCourseSelect={handleCourseSelect} baseUrl={baseUrl} onProfileUpdate={handleProfileUpdate} darkMode={darkMode} onDarkModeChange={() => setDarkMode((d) => !d)} />
         </ProgressProvider>
@@ -460,9 +541,18 @@ function App() {
   return (
     <ProgressProvider>
       <div className="login-page">
-        {toast.visible && (
-          <div className={`toast ${toast.type === 'achievement' ? 'toast-achievement' : 'toast-success'}`}>{toast.message}</div>
-        )}
+        {toast.visible && toast.type === 'achievement' && toast.achievementKey && (
+            <div className="achievement-popup-overlay" role="dialog" aria-live="polite" aria-label="Achievement unlocked">
+              <div className="achievement-popup">
+                <span className="achievement-popup-icon" aria-hidden>🏆</span>
+                <h3 className="achievement-popup-heading">Achievement Unlocked!</h3>
+                <p className="achievement-popup-title">{getAchievementTitle(toast.achievementKey)}</p>
+                <p className="achievement-popup-xp">+{getAchievementXp(toast.achievementKey)} XP</p>
+                <button type="button" className="achievement-popup-dismiss" onClick={dismissAchievementPopup}>Nice!</button>
+              </div>
+            </div>
+          )}
+          {toast.visible && toast.type !== 'achievement' && <div className="toast toast-success">{toast.message}</div>}
           <div className="login-container">
           <div className="login-school-section">
             <div className="school-logo-wrap">
@@ -611,9 +701,10 @@ function App() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className={`input-group ${emptyFieldNames.includes('birthday') ? 'field-error' : ''}`}>
+                  <div className={`input-group input-group-birthday ${emptyFieldNames.includes('birthday') ? 'field-error' : ''}`}>
+                    <span className="birthday-label" aria-hidden="true">Birthday</span>
                     <i className="fas fa-calendar"></i>
-                    <input type="date" placeholder="Birthday" name="birthday" value={formData.birthday} onChange={handleInputChange} required />
+                    <input type="date" placeholder="Birthday" name="birthday" value={formData.birthday} onChange={handleInputChange} required aria-label="Birthday" />
                   </div>
                   <div className={`input-group ${emptyFieldNames.includes('age') ? 'field-error' : ''}`}>
                     <i className="fas fa-birthday-cake"></i>
@@ -624,7 +715,7 @@ function App() {
                   <div className={`input-group ${emptyFieldNames.includes('sex') ? 'field-error' : ''}`}>
                     <i className="fas fa-venus-mars"></i>
                     <select name="sex" value={formData.sex} onChange={handleInputChange} required>
-                      <option value="">Select Sex</option>
+                      <option value="">Sex</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
@@ -776,8 +867,8 @@ function App() {
             ) : null}
             <p className="signup-text">
               {isLogin
-                ? (userType === 'teacher' ? "Don't have a teacher account?" : "Don't have an account?")
-                : (userType === 'teacher' ? "Already have a teacher account?" : "Already have an account?")}
+                ? (userType === 'teacher' ? "Don't have a teacher account? " : "Don't have an account? ")
+                : (userType === 'teacher' ? "Already have a teacher account? " : "Already have an account? ")}
               <a href="#" className="signup-link" onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); setMessage(''); setEmptyFieldNames([]); }}>
                 {isLogin ? 'Sign Up' : 'Log In'}
               </a>
