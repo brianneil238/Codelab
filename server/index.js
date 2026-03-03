@@ -85,6 +85,9 @@ app.post('/signup', async (req, res) => {
       if (!username || !birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
         return res.status(400).json({ message: 'Please enter all required fields' });
       }
+      if (!['11', '12'].includes(String(grade).trim())) {
+        return res.status(400).json({ message: 'Only Grade 11 and Grade 12 are accepted.' });
+      }
     }
 
     const existingEmail = await users.findOne({ email });
@@ -260,7 +263,13 @@ app.patch('/users/:userId/profile', async (req, res) => {
     if (typeof sex === 'string') update.sex = sex;
     if (typeof address === 'string') update.address = address;
     if (typeof contact === 'string') update.contact = contact;
-    if (typeof grade === 'string') update.grade = grade;
+    if (typeof grade === 'string') {
+      const g = grade.trim();
+      if (g && !['11', '12'].includes(g)) {
+        return res.status(400).json({ message: 'Only Grade 11 and Grade 12 are accepted.' });
+      }
+      update.grade = g;
+    }
     if (typeof strand === 'string') update.strand = strand;
     if (typeof section === 'string') update.section = section;
     if (Object.keys(update).length === 0) {

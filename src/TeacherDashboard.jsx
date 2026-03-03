@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import './Dashboard.css';
 
 const MAX_PHOTO_SIZE = 500 * 1024; // 500KB
-const GRADES = ['7', '8', '9', '10', '11', '12'];
+const MAX_ANNOUNCEMENT_LENGTH = 300;
+const GRADES = ['11', '12'];
 const STRANDS = ['STEM', 'ABM', 'HUMSS', 'TVL'];
 
 function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = false, onDarkModeChange, onProfileUpdate }) {
@@ -40,6 +41,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const [announcementEditingTargetSection, setAnnouncementEditingTargetSection] = useState('');
   const [announcementEditingSaving, setAnnouncementEditingSaving] = useState(false);
   const [announcementDeletingId, setAnnouncementDeletingId] = useState(null);
+  const [showAnnouncementComposer, setShowAnnouncementComposer] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profilePreview, setProfilePreview] = useState(null);
@@ -50,6 +52,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     fullName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '',
   });
   const fileInputRef = useRef(null);
+  const announcementInputRef = useRef(null);
   const dropdownRef = useRef(null);
   const studentsPanelRef = useRef(null);
   const [expandedHierarchy, setExpandedHierarchy] = useState({});
@@ -109,6 +112,12 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
       return () => document.removeEventListener('keydown', handleEscapeConfirm);
     }
   }, [deleteConfirmStudent]);
+
+  useEffect(() => {
+    if (showAnnouncementComposer) {
+      announcementInputRef.current?.focus();
+    }
+  }, [showAnnouncementComposer]);
 
   useEffect(() => {
     if (announcementTargetGrade && !['11', '12'].includes(String(announcementTargetGrade))) {
@@ -448,10 +457,21 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
       if (filterSection && (s.section || '') !== filterSection) return false;
       return true;
     });
+    // Sort by display name (Last Name, First Name) so A–Z / Z–A matches what the user sees
+    const sortKey = (s) => {
+      const ln = (s.last_name || '').toString().trim();
+      const fn = (s.first_name || '').toString().trim();
+      const mn = (s.middle_name || '').toString().trim();
+      if (ln || fn) {
+        const mi = mn ? (mn[0] || '').toUpperCase() + '.' : '';
+        return `${ln}, ${fn} ${mi}`.trim().toLowerCase();
+      }
+      return (s.full_name || s.username || '').toLowerCase();
+    };
     const order = sortBy === 'name-desc' ? -1 : 1;
     list = [...list].sort((a, b) => {
-      const na = (a.full_name || a.username || '').toLowerCase();
-      const nb = (b.full_name || b.username || '').toLowerCase();
+      const na = sortKey(a);
+      const nb = sortKey(b);
       return order * (na < nb ? -1 : na > nb ? 1 : 0);
     });
     return list;
@@ -665,7 +685,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     return rows;
   }, [completionBuckets, completionModalCourse, completionModalStatus]);
 
-  /** Groups for Students modal: by grade → strand (if 11/12) → section, each group sorted A–Z by name */
+  /** Groups for Students modal: by grade → strand (if 11/12) → section. Order within each group comes from filteredStudents (respects Name A–Z / Z–A). */
   const studentsModalGroups = React.useMemo(() => {
     const groups = [];
     const gss = studentsByGradeStrandSection;
@@ -680,11 +700,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         const bySection = byStrand[str];
         const sections = Object.keys(bySection).sort();
         for (const sec of sections) {
-          const list = [...(bySection[sec] || [])].sort((a, b) => {
-            const na = (a.full_name || a.username || '').toLowerCase();
-            const nb = (b.full_name || b.username || '').toLowerCase();
-            return na < nb ? -1 : na > nb ? 1 : 0;
-          });
+          const list = bySection[sec] || [];
           if (list.length === 0) continue;
           const strandLabel = (g === '11' || g === '12') && str ? ` ${str}` : '';
           const sectionLabel = sec && sec !== '—' ? ` ${sec}` : (sec === '—' ? '' : ` ${sec}`);
@@ -781,6 +797,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         setAnnouncementTargetGrade('');
         setAnnouncementTargetStrand('');
         setAnnouncementTargetSection('');
+        setShowAnnouncementComposer(false);
         setAnnouncements((prev) => [{
           id: data.id,
           text: data.text,
@@ -1337,51 +1354,61 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
           {completionModalOpen && (
             <div className="teacher-attention-modal-overlay" onClick={closeCompletionModal}>
               <div
-                className={`teacher-attention-modal ${darkMode ? 'teacher-attention-modal-dark' : ''}`}
+                className={`teacher-attention-modal teacher-completion-modal ${darkMode ? 'teacher-attention-modal-dark' : ''}`}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Completion list for ${completionModalCourse}`}
               >
-                <div className="teacher-attention-modal-header">
-                  <h3>Completion — {completionModalCourse}</h3>
+                <div className="teacher-completion-modal-header">
+                  <span className="teacher-completion-modal-badge">{completionModalCourse}</span>
+                  <h3>Course completion</h3>
                   <button type="button" className="teacher-attention-modal-close" onClick={closeCompletionModal} aria-label="Close">×</button>
                 </div>
                 <div className="teacher-attention-modal-body">
-                  <div className="teacher-modal-pills" role="tablist" aria-label="Completion status">
+                  <div className="teacher-completion-tabs" role="tablist" aria-label="Completion status">
                     <button
                       type="button"
-                      className={`teacher-modal-pill ${completionModalStatus === 'completed' ? 'teacher-modal-pill-active' : ''}`}
+                      className={`teacher-completion-tab teacher-completion-tab-completed ${completionModalStatus === 'completed' ? 'teacher-completion-tab-active' : ''}`}
                       onClick={() => setCompletionModalStatus('completed')}
                       role="tab"
                       aria-selected={completionModalStatus === 'completed'}
                     >
-                      Completed ({(completionBuckets[completionModalCourse]?.completed || []).length})
+                      <span className="teacher-completion-tab-icon" aria-hidden>✓</span>
+                      <span>Completed</span>
+                      <span className="teacher-completion-tab-count">{(completionBuckets[completionModalCourse]?.completed || []).length}</span>
                     </button>
                     <button
                       type="button"
-                      className={`teacher-modal-pill ${completionModalStatus === 'inProgress' ? 'teacher-modal-pill-active' : ''}`}
+                      className={`teacher-completion-tab teacher-completion-tab-progress ${completionModalStatus === 'inProgress' ? 'teacher-completion-tab-active' : ''}`}
                       onClick={() => setCompletionModalStatus('inProgress')}
                       role="tab"
                       aria-selected={completionModalStatus === 'inProgress'}
                     >
-                      In progress ({(completionBuckets[completionModalCourse]?.inProgress || []).length})
+                      <span className="teacher-completion-tab-icon" aria-hidden>◐</span>
+                      <span>In progress</span>
+                      <span className="teacher-completion-tab-count">{(completionBuckets[completionModalCourse]?.inProgress || []).length}</span>
                     </button>
                     <button
                       type="button"
-                      className={`teacher-modal-pill ${completionModalStatus === 'notStarted' ? 'teacher-modal-pill-active' : ''}`}
+                      className={`teacher-completion-tab teacher-completion-tab-notstarted ${completionModalStatus === 'notStarted' ? 'teacher-completion-tab-active' : ''}`}
                       onClick={() => setCompletionModalStatus('notStarted')}
                       role="tab"
                       aria-selected={completionModalStatus === 'notStarted'}
                     >
-                      Not started ({(completionBuckets[completionModalCourse]?.notStarted || []).length})
+                      <span className="teacher-completion-tab-icon" aria-hidden>○</span>
+                      <span>Not started</span>
+                      <span className="teacher-completion-tab-count">{(completionBuckets[completionModalCourse]?.notStarted || []).length}</span>
                     </button>
                   </div>
 
                   {completionModalRows.length === 0 ? (
-                    <p className="teacher-empty">No students found for this list.</p>
+                    <div className="teacher-completion-empty">
+                      <span className="teacher-completion-empty-icon" aria-hidden>📋</span>
+                      <p>No students in this list.</p>
+                    </div>
                   ) : (
-                    <div className="teacher-attention-table-wrap">
+                    <div className="teacher-completion-table-wrap">
                       <table className="teacher-attention-table teacher-attention-table-completion">
                         <thead>
                           <tr>
@@ -1389,7 +1416,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                             <th>Grade</th>
                             <th>Strand</th>
                             <th>Section</th>
-                            <th>{completionModalCourse} %</th>
+                            <th>{completionModalCourse}</th>
                             <th>Overall</th>
                             <th>Last active</th>
                           </tr>
@@ -1398,12 +1425,26 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                           {completionModalRows.map((s) => (
                             <tr key={s.id}>
                               <td className="teacher-attention-name">{s.full_name || s.username}</td>
-                              <td>{s.grade || '—'}</td>
+                              <td><span className="teacher-completion-cell-badge">{s.grade || '—'}</span></td>
                               <td>{s.strand || '—'}</td>
                               <td>{s.section || '—'}</td>
-                              <td>{(s.coursePct ?? 0)}%</td>
-                              <td>{(s.overallProgress ?? 0)}%</td>
-                              <td>{getLastActiveText(s.lastActivity)}</td>
+                              <td>
+                                <div className="teacher-completion-progress-cell">
+                                  <div className="teacher-completion-progress-bar" role="presentation">
+                                    <div className="teacher-completion-progress-fill" style={{ width: `${s.coursePct ?? 0}%` }} />
+                                  </div>
+                                  <span className="teacher-completion-progress-pct">{(s.coursePct ?? 0)}%</span>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="teacher-completion-progress-cell">
+                                  <div className="teacher-completion-progress-bar" role="presentation">
+                                    <div className="teacher-completion-progress-fill" style={{ width: `${s.overallProgress ?? 0}%` }} />
+                                  </div>
+                                  <span className="teacher-completion-progress-pct">{(s.overallProgress ?? 0)}%</span>
+                                </div>
+                              </td>
+                              <td className="teacher-completion-last-active">{getLastActiveText(s.lastActivity)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1812,82 +1853,104 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
 
           {!loading && activeTab === 'announcements' && (
           <div className="progress-overview teacher-announcements-section">
-            <h3>Announcements</h3>
-            <p className="teacher-panel-hint">Post a message that students will see on their dashboard.</p>
-            <div className="teacher-announcement-form">
-              <textarea
-                placeholder="e.g. Quiz 1 due Friday. Remember to complete the HTML lectures."
-                value={announcementText}
-                onChange={(e) => setAnnouncementText(e.target.value)}
-                className="teacher-announcement-input"
-                rows={3}
-                disabled={announcementSending}
-              />
-              <div className="teacher-announcement-controls">
-                <label className="teacher-announcement-check">
-                  <input
-                    type="checkbox"
-                    checked={announcementPinned}
-                    onChange={(e) => setAnnouncementPinned(e.target.checked)}
-                    disabled={announcementSending}
-                  />
-                  <span>Pin</span>
-                </label>
-
-                <label className="teacher-announcement-field">
-                  <span className="teacher-announcement-field-label">Schedule</span>
-                  <input
-                    type="datetime-local"
-                    value={announcementPublishAt}
-                    onChange={(e) => setAnnouncementPublishAt(e.target.value)}
-                    className="teacher-announcement-input-control"
-                    disabled={announcementSending}
-                  />
-                </label>
-
-                <div className="teacher-announcement-targets">
-                  <span className="teacher-announcement-field-label">Target</span>
-                  <select
-                    value={announcementTargetGrade}
-                    onChange={(e) => setAnnouncementTargetGrade(e.target.value)}
-                    className="teacher-announcement-select"
-                    disabled={announcementSending}
-                    aria-label="Target grade"
-                  >
-                    <option value="">All grades</option>
-                    {GRADES.map((g) => (
-                      <option key={g} value={g}>Grade {g}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={announcementTargetStrand}
-                    onChange={(e) => setAnnouncementTargetStrand(e.target.value)}
-                    className="teacher-announcement-select"
-                    disabled={announcementSending || (announcementTargetGrade && !['11', '12'].includes(String(announcementTargetGrade)))}
-                    aria-label="Target strand"
-                  >
-                    <option value="">All strands</option>
-                    {STRANDS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                  <input
-                    value={announcementTargetSection}
-                    onChange={(e) => setAnnouncementTargetSection(e.target.value)}
-                    className="teacher-announcement-input-control teacher-announcement-section"
-                    placeholder="Section (optional)"
-                    disabled={announcementSending}
-                    aria-label="Target section"
-                  />
-                </div>
-              </div>
-              <button type="button" className="teacher-announcement-btn" onClick={handlePostAnnouncement} disabled={!announcementText.trim() || announcementSending}>
-                {announcementSending ? 'Posting…' : 'Post announcement'}
+            <div className="teacher-announcement-topbar">
+              <h3>Announcements</h3>
+              <button
+                type="button"
+                className="teacher-announcement-new-btn"
+                onClick={() => {
+                  setAnnouncementEditingId(null);
+                  setShowAnnouncementComposer((prev) => !prev);
+                }}
+              >
+                {showAnnouncementComposer ? 'Hide Composer' : '+ New Announcement'}
               </button>
-              {announcementError && (
-                <p className="teacher-announcement-error">{announcementError}</p>
-              )}
             </div>
+            <p className="teacher-panel-hint">Post a message that students will see on their dashboard.</p>
+            {showAnnouncementComposer && (
+              <div className="teacher-announcement-form">
+                <div className="teacher-announcement-composer">
+                  <span className="teacher-announcement-composer-icon" aria-hidden>📣</span>
+                  <span className="teacher-announcement-char-count">
+                    {announcementText.length}/{MAX_ANNOUNCEMENT_LENGTH}
+                  </span>
+                </div>
+                <textarea
+                  placeholder="e.g. Quiz 1 due Friday. Remember to complete the HTML lectures."
+                  value={announcementText}
+                  onChange={(e) => setAnnouncementText(e.target.value)}
+                  className="teacher-announcement-input"
+                  rows={3}
+                  maxLength={MAX_ANNOUNCEMENT_LENGTH}
+                  disabled={announcementSending}
+                  ref={announcementInputRef}
+                />
+                <div className="teacher-announcement-controls">
+                  <label className="teacher-announcement-check">
+                    <input
+                      type="checkbox"
+                      checked={announcementPinned}
+                      onChange={(e) => setAnnouncementPinned(e.target.checked)}
+                      disabled={announcementSending}
+                    />
+                    <span>Pin</span>
+                  </label>
+
+                  <label className="teacher-announcement-field">
+                    <span className="teacher-announcement-field-label">Schedule</span>
+                    <input
+                      type="datetime-local"
+                      value={announcementPublishAt}
+                      onChange={(e) => setAnnouncementPublishAt(e.target.value)}
+                      className="teacher-announcement-input-control"
+                      disabled={announcementSending}
+                    />
+                  </label>
+
+                  <div className="teacher-announcement-targets">
+                    <span className="teacher-announcement-field-label">Target</span>
+                    <select
+                      value={announcementTargetGrade}
+                      onChange={(e) => setAnnouncementTargetGrade(e.target.value)}
+                      className="teacher-announcement-select"
+                      disabled={announcementSending}
+                      aria-label="Target grade"
+                    >
+                      <option value="">All grades</option>
+                      {GRADES.map((g) => (
+                        <option key={g} value={g}>Grade {g}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={announcementTargetStrand}
+                      onChange={(e) => setAnnouncementTargetStrand(e.target.value)}
+                      className="teacher-announcement-select"
+                      disabled={announcementSending || (announcementTargetGrade && !['11', '12'].includes(String(announcementTargetGrade)))}
+                      aria-label="Target strand"
+                    >
+                      <option value="">All strands</option>
+                      {STRANDS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <input
+                      value={announcementTargetSection}
+                      onChange={(e) => setAnnouncementTargetSection(e.target.value)}
+                      className="teacher-announcement-input-control teacher-announcement-section"
+                      placeholder="Section (optional)"
+                      disabled={announcementSending}
+                      aria-label="Target section"
+                    />
+                  </div>
+                </div>
+                <button type="button" className="teacher-announcement-btn" onClick={handlePostAnnouncement} disabled={!announcementText.trim() || announcementSending}>
+                  {announcementSending ? 'Posting…' : 'Post announcement'}
+                </button>
+                {announcementError && (
+                  <p className="teacher-announcement-error">{announcementError}</p>
+                )}
+              </div>
+            )}
             {announcements.length > 0 && (
               <ul className="teacher-announcement-list">
                 {announcements.slice(0, 5).map((a) => (
@@ -1900,6 +1963,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                             onChange={(e) => setAnnouncementEditingText(e.target.value)}
                             className="teacher-announcement-edit-input"
                             rows={3}
+                            maxLength={MAX_ANNOUNCEMENT_LENGTH}
                             disabled={announcementEditingSaving}
                           />
                           <div className="teacher-announcement-controls teacher-announcement-controls-compact">
@@ -1961,9 +2025,19 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                         </div>
                       ) : (
                         <>
+                          <h4 className="teacher-announcement-title">
+                            {a.text?.trim()
+                              ? (a.text.trim().split(/\s+/).slice(0, 5).join(' ') + (a.text.trim().split(/\s+/).length > 5 ? '...' : ''))
+                              : 'Announcement'}
+                          </h4>
                           <span className="teacher-announcement-text">{a.text}</span>
                           <div className="teacher-announcement-badges">
                             {a.pinned ? <span className="teacher-announcement-badge teacher-announcement-badge-pin">Pinned</span> : null}
+                            {a.target?.grade ? (
+                              <span className="teacher-announcement-badge teacher-announcement-badge-grade">
+                                G{a.target.grade}{a.target?.strand ? ` ${a.target.strand}` : ''}
+                              </span>
+                            ) : null}
                             {a.publish_at ? (
                               <span className="teacher-announcement-badge teacher-announcement-badge-time">
                                 {new Date(a.publish_at).getTime() > Date.now() ? 'Scheduled' : 'Published'}: {new Date(a.publish_at).toLocaleString()}
@@ -1978,7 +2052,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                         </>
                       )}
                       <span className="teacher-announcement-date">
-                        {a.created_at ? `Created: ${new Date(a.created_at).toLocaleDateString()}` : ''}
+                        {a.created_at ? `Published: ${new Date(a.created_at).toLocaleString()}` : ''}
                       </span>
                     </div>
                     <div className="teacher-announcement-actions">
@@ -1998,16 +2072,17 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                         </>
                       ) : (
                         <>
-                          <button type="button" className="teacher-announcement-action" onClick={() => startEditAnnouncement(a)}>
-                            Edit
+                          <button type="button" className="teacher-announcement-action" onClick={() => startEditAnnouncement(a)} aria-label="Edit announcement">
+                            ✎
                           </button>
                           <button
                             type="button"
                             className="teacher-announcement-action teacher-announcement-action-danger"
                             onClick={() => deleteAnnouncement(a.id)}
                             disabled={announcementDeletingId === a.id}
+                            aria-label="Delete announcement"
                           >
-                            {announcementDeletingId === a.id ? 'Deleting…' : 'Delete'}
+                            {announcementDeletingId === a.id ? '…' : '🗑'}
                           </button>
                         </>
                       )}

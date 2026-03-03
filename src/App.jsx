@@ -128,7 +128,7 @@ function App() {
             : (() => {
                 const role = userType === 'teacher' ? 'teacher' : 'student';
                 const payload = { ...formData, role };
-                if (role === 'student' && formData.grade && ['7', '8', '9', '10'].includes(formData.grade)) payload.strand = 'N/A';
+                if (role === 'student' && formData.grade && !['11', '12'].includes(formData.grade)) payload.strand = 'N/A';
                 if (role === 'teacher') {
                   if (formData.employeeNumber) {
                     const digits = String(formData.employeeNumber).replace(/\D/g, '').slice(0, 7);
@@ -210,7 +210,7 @@ function App() {
     setEmptyFieldNames(prev => prev.filter(n => n !== name));
     setFormData(prev => {
       const next = { ...prev, [name]: value };
-      if (name === 'grade' && ['7', '8', '9', '10'].includes(value)) next.strand = '';
+      if (name === 'grade' && !['11', '12'].includes(value)) next.strand = '';
       if (name === 'employeeNumber') {
         next.employeeNumber = value.replace(/\D/g, '').slice(0, 7);
       }
@@ -248,7 +248,7 @@ function App() {
   };
 
   const showStrand = formData.grade === '11' || formData.grade === '12';
-  const GRADE_OPTIONS = ['7', '8', '9', '10', '11', '12'];
+  const GRADE_OPTIONS = ['11', '12'];
   const STRAND_OPTIONS = ['STEM', 'ABM', 'HUMSS', 'TVL'];
 
   const handleForgotInputChange = (e) => {

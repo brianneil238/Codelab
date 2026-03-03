@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { useProgress } from './ProgressContext';
 
 const MAX_PHOTO_SIZE = 500 * 1024; // 500KB
-const GRADES = ['7', '8', '9', '10', '11', '12'];
+const GRADES = ['11', '12'];
 const STRANDS = ['STEM', 'ABM', 'HUMSS', 'TVL'];
 
 function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, darkMode = false, onDarkModeChange }) {
