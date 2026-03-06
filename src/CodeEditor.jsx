@@ -181,22 +181,27 @@ function CodeEditor({ language, initialCode, onCodeChange, onCodeRun, guide, dar
   const openHtmlInNewTab = () => {
     if (language.toLowerCase() !== 'html') return;
     const doc = htmlPreviewContent || buildHtmlDocument(code || '', darkMode) || '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body><p>No content yet. Click Run Code first.</p></body></html>';
-    const blob = new Blob([doc], { type: 'text/html; charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(doc);
+    const w = window.open('', '_blank', 'noopener,noreferrer');
     if (w) {
-      // Revoke blob URL after the new tab has had time to load (revoking too soon can leave the tab blank).
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      const writeDoc = () => {
+        try {
+          w.document.open('text/html', 'replace');
+          w.document.write(doc);
+          w.document.close();
+        } catch (err) {
+          w.location.href = dataUrl;
+        }
+      };
+      setTimeout(writeDoc, 50);
     } else {
-      // Popup blocked: fallback to link click so the blob still opens in a new tab.
       const a = document.createElement('a');
-      a.href = url;
+      a.href = dataUrl;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
   };
 

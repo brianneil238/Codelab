@@ -11,7 +11,7 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [completedChallengeIds, setCompletedChallengeIds] = useState(new Set());
-  const [openGroups, setOpenGroups] = useState(new Set(['Python-Beginner', 'Python-Intermediate', 'Python-Hard', 'C++-Beginner', 'C++-Intermediate', 'C++-Hard']));
+  const [openGroups, setOpenGroups] = useState(new Set());
 
   const baseUrl = import.meta.env.DEV
     ? '/api'

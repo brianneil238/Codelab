@@ -90,10 +90,18 @@ const CATEGORY_LABELS = {
 
 const XP_PER_LEVEL = 500;
 
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'completed', label: 'Complete' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'not_complete', label: 'Not complete' },
+];
+
 function Achievements({ baseUrl, user, darkMode = false }) {
   const { streak = {} } = useProgress ? useProgress() : { streak: {} };
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     const load = async () => {
@@ -142,7 +150,22 @@ function Achievements({ baseUrl, user, darkMode = false }) {
   const avatarLetter = (displayName || 'U').toString().charAt(0).toUpperCase();
   const avatarSrc = user?.profilePhoto || '/profile-avatar.png';
 
-  const grouped = ACHIEVEMENT_CATALOG.reduce((acc, a) => {
+  const getState = (entry) => {
+    const earned = earnedKeys.has(entry.key);
+    const inProgress = !earned && firstUnearnedByCategory[entry.category] === entry.key;
+    return earned ? 'completed' : inProgress ? 'in_progress' : 'locked';
+  };
+  const filteredCatalog =
+    statusFilter === 'all'
+      ? ACHIEVEMENT_CATALOG
+      : ACHIEVEMENT_CATALOG.filter((a) => {
+          const state = getState(a);
+          if (statusFilter === 'completed') return state === 'completed';
+          if (statusFilter === 'in_progress') return state === 'in_progress';
+          if (statusFilter === 'not_complete') return state === 'locked';
+          return true;
+        });
+  const grouped = filteredCatalog.reduce((acc, a) => {
     const cat = a.category || 'other';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(a);
@@ -205,6 +228,20 @@ function Achievements({ baseUrl, user, darkMode = false }) {
             <span className="achievements-hero-level-badge-xp">{totalXP} XP</span>
           </div>
         </div>
+      </div>
+
+      {/* Filter: All | Complete | In progress | Not complete */}
+      <div className="achievements-filter-row">
+        {STATUS_FILTERS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            className={`achievements-filter-btn ${statusFilter === value ? 'achievements-filter-btn--active' : ''}`}
+            onClick={() => setStatusFilter(value)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Catalog by category */}

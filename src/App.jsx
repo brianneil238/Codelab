@@ -10,8 +10,10 @@ import FAQ from './FAQ';
 import { ProgressProvider } from './ProgressContext';
 import bikeRentalLogo from './assets/university_bike_rental_logo.png';
 import schoolLogo from './assets/school-logo.png';
+import { buildAddressStructure, formatAddressString, parseAddressString } from './data/philippineAddresses';
 
 function App() {
+  const [addressStructure, setAddressStructure] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -30,6 +32,9 @@ function App() {
     strand: '',
     section: '',
     address: '',
+    addressProvince: '',
+    addressCity: '',
+    addressBarangay: '',
     email: '',
     password: '',
     role: 'student',
@@ -55,6 +60,14 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('codelab-dark', darkMode ? 'true' : 'false'); } catch {}
   }, [darkMode]);
+
+  // Load Philippines address structure for Province → City → Barangay dropdowns
+  useEffect(() => {
+    fetch('/philippine_provinces_cities_municipalities_and_barangays_2019v2.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setAddressStructure(data ? buildAddressStructure(data) : null))
+      .catch(() => setAddressStructure(null));
+  }, []);
 
   // In dev, use /api so Vite proxies to localhost:5000 (no CORS, no .env needed).
   // Otherwise use VITE_API_URL or the deployed Render URL.
@@ -139,6 +152,8 @@ function App() {
                   payload.lastName = (formData.lastName || '').trim();
                   payload.firstName = (formData.firstName || '').trim();
                   payload.middleName = (formData.middleName || '').trim();
+                  const addr = formatAddressString(formData.addressCity, formData.addressProvince, formData.addressBarangay);
+                  if (addr) payload.address = addr;
                 }
                 return payload;
               })()
@@ -210,7 +225,20 @@ function App() {
     setEmptyFieldNames(prev => prev.filter(n => n !== name));
     setFormData(prev => {
       const next = { ...prev, [name]: value };
-      if (name === 'grade' && !['11', '12'].includes(value)) next.strand = '';
+      if (name === 'grade' && !['11', '12'].includes(value)) {
+        next.strand = '';
+        next.section = '';
+      }
+      if (name === 'strand') {
+        next.section = '';
+      }
+      if (name === 'addressProvince') {
+        next.addressCity = '';
+        next.addressBarangay = '';
+      }
+      if (name === 'addressCity') {
+        next.addressBarangay = '';
+      }
       if (name === 'employeeNumber') {
         next.employeeNumber = value.replace(/\D/g, '').slice(0, 7);
       }
@@ -239,9 +267,10 @@ function App() {
     if (!(data.grade || '').trim()) empty.push('grade');
     if (data.grade === '11' || data.grade === '12') {
       if (!(data.strand || '').trim()) empty.push('strand');
+      if (!(data.section || '').trim()) empty.push('section');
     }
-    if (!(data.section || '').trim()) empty.push('section');
-    if (!(data.address || '').trim()) empty.push('address');
+    const addressFull = formatAddressString(data.addressCity, data.addressProvince, data.addressBarangay);
+    if (!(addressFull || data.address || '').trim()) empty.push('address');
     if (!(data.email || '').trim()) empty.push('email');
     if (!(data.password || '').trim()) empty.push('password');
     return empty;
@@ -250,6 +279,25 @@ function App() {
   const showStrand = formData.grade === '11' || formData.grade === '12';
   const GRADE_OPTIONS = ['11', '12'];
   const STRAND_OPTIONS = ['STEM', 'ABM', 'HUMSS', 'TVL'];
+  // Sections per grade + strand (student signup / profile)
+  const SECTION_BY_GRADE_STRAND = {
+    '11': {
+      ABM: ['Taylor', 'Mayo'],
+      HUMSS: ['Pavlov', 'Skinner', 'Kohlberg', 'Brunner', 'Gardner'],
+      STEM: ['Pasteur', 'Newton'],
+      TVL: ['Carver', 'Manzke', 'Comorford'],
+    },
+    '12': {
+      ABM: ['Drucker', 'Gilbreth'],
+      HUMSS: ['Raleigh', 'Aliegheri', 'Henley', 'Cervantes'],
+      STEM: ['Galileo', 'Einstein'],
+      TVL: ['Apicius', 'Jones', 'Ramsay'],
+    },
+  };
+  const sectionOptions = showStrand && formData.strand
+    ? (SECTION_BY_GRADE_STRAND[formData.grade]?.[formData.strand] || [])
+    : [];
+  const showSection = showStrand && formData.strand && sectionOptions.length > 0;
 
   const handleForgotInputChange = (e) => {
     const { name, value } = e.target;
@@ -316,6 +364,9 @@ function App() {
       strand: '',
       section: '',
       address: '',
+      addressProvince: '',
+      addressCity: '',
+      addressBarangay: '',
       email: '',
       password: '',
       role: 'student',
@@ -720,9 +771,37 @@ function App() {
                       <option value="Female">Female</option>
                     </select>
                   </div>
+                </div>
+                <p className="form-section-title">Address</p>
+                <div className="form-row form-row-address">
                   <div className={`input-group ${emptyFieldNames.includes('address') ? 'field-error' : ''}`}>
                     <i className="fas fa-map-marker-alt"></i>
-                    <input type="text" placeholder="Address" name="address" value={formData.address} onChange={handleInputChange} required />
+                    <select name="addressProvince" value={formData.addressProvince} onChange={handleInputChange} required aria-label="Province">
+                      <option value="">Province</option>
+                      {addressStructure?.provinces.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={`input-group ${emptyFieldNames.includes('address') ? 'field-error' : ''}`}>
+                    <i className="fas fa-city"></i>
+                    <select name="addressCity" value={formData.addressCity} onChange={handleInputChange} required aria-label="City / Municipality" disabled={!formData.addressProvince}>
+                      <option value="">City / Municipality</option>
+                      {addressStructure && formData.addressProvince && addressStructure.getCities(formData.addressProvince).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row form-row-address">
+                  <div className={`input-group input-group-full ${emptyFieldNames.includes('address') ? 'field-error' : ''}`}>
+                    <i className="fas fa-map-pin"></i>
+                    <select name="addressBarangay" value={formData.addressBarangay} onChange={handleInputChange} required aria-label="Barangay" disabled={!formData.addressCity}>
+                      <option value="">Barangay</option>
+                      {addressStructure && formData.addressProvince && formData.addressCity && addressStructure.getBarangays(formData.addressProvince, formData.addressCity).map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <p className="form-section-title">School</p>
@@ -753,12 +832,26 @@ function App() {
                     </div>
                   )}
                 </div>
-                <div className="form-single">
-                  <div className={`input-group ${emptyFieldNames.includes('section') ? 'field-error' : ''}`}>
-                    <i className="fas fa-users"></i>
-                    <input type="text" placeholder="Section" name="section" value={formData.section} onChange={handleInputChange} required />
+                {showSection ? (
+                  <div className="form-row">
+                    <div className={`input-group ${emptyFieldNames.includes('section') ? 'field-error' : ''}`}>
+                      <i className="fas fa-users"></i>
+                      <select name="section" value={formData.section} onChange={handleInputChange} required>
+                        <option value="">Select Section</option>
+                        {sectionOptions.map((sec) => (
+                          <option key={sec} value={sec}>{sec}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="form-single">
+                    <div className="input-group input-group-disabled">
+                      <i className="fas fa-users"></i>
+                      <input type="text" placeholder="Section (choose Grade & Strand first)" value="—" readOnly disabled />
+                    </div>
+                  </div>
+                )}
                 <p className="form-section-title">Account</p>
               </>
             )}

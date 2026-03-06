@@ -1,10 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './Dashboard.css';
+import { buildAddressStructure, formatAddressString, parseAddressString } from './data/philippineAddresses';
 
 const MAX_PHOTO_SIZE = 500 * 1024; // 500KB
 const MAX_ANNOUNCEMENT_LENGTH = 300;
 const GRADES = ['11', '12'];
 const STRANDS = ['STEM', 'ABM', 'HUMSS', 'TVL'];
+const SECTION_BY_GRADE_STRAND = {
+  '11': { ABM: ['Taylor', 'Mayo'], HUMSS: ['Pavlov', 'Skinner', 'Kohlberg', 'Brunner', 'Gardner'], STEM: ['Pasteur', 'Newton'], TVL: ['Carver', 'Manzke', 'Comorford'] },
+  '12': { ABM: ['Drucker', 'Gilbreth'], HUMSS: ['Raleigh', 'Aliegheri', 'Henley', 'Cervantes'], STEM: ['Galileo', 'Einstein'], TVL: ['Apicius', 'Jones', 'Ramsay'] },
+};
 
 function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = false, onDarkModeChange, onProfileUpdate }) {
   const [students, setStudents] = useState([]);
@@ -74,6 +79,13 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const [deletingStudentId, setDeletingStudentId] = useState(null);
   const [deleteConfirmStudent, setDeleteConfirmStudent] = useState(null); // { student, displayName } when confirmation dialog is open
   const [studentPhotoZoom, setStudentPhotoZoom] = useState(null); // { url, name } or null
+  const [addressStructure, setAddressStructure] = useState(null);
+  const [activityByWeek, setActivityByWeek] = useState([]);
+  const [activityByDay, setActivityByDay] = useState([]);
+  const [analyticsSummary, setAnalyticsSummary] = useState(null);
+  const [lectureAnalytics, setLectureAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsRange, setAnalyticsRange] = useState('4w');
 
   const baseUrl = baseUrlProp ?? (import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com'));
 
@@ -91,6 +103,13 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetch('/philippine_provinces_cities_municipalities_and_barangays_2019v2.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setAddressStructure(data ? buildAddressStructure(data) : null))
+      .catch(() => setAddressStructure(null));
   }, []);
 
   useEffect(() => {
@@ -137,6 +156,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     setProfilePreview(null);
     setProfileFile(null);
     setProfileError('');
+    const parsed = parseAddressString(user?.address ?? '');
     setProfileForm({
       fullName: user?.fullName ?? '',
       username: user?.username ?? '',
@@ -144,6 +164,9 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
       age: user?.age !== undefined && user?.age !== null ? String(user.age) : '',
       sex: user?.sex ?? '',
       address: user?.address ?? '',
+      addressProvince: parsed.province,
+      addressCity: parsed.city,
+      addressBarangay: parsed.barangay,
       grade: user?.grade ?? '',
       strand: user?.strand ?? '',
       section: user?.section ?? '',
@@ -186,7 +209,16 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     const { name, value } = e.target;
     setProfileForm((prev) => {
       const next = { ...prev, [name]: value };
-      if (name === 'grade' && !['11', '12'].includes(value)) next.strand = 'N/A';
+      if (name === 'grade' && !['11', '12'].includes(value)) {
+        next.strand = 'N/A';
+        next.section = '';
+      }
+      if (name === 'strand') next.section = '';
+      if (name === 'addressProvince') {
+        next.addressCity = '';
+        next.addressBarangay = '';
+      }
+      if (name === 'addressCity') next.addressBarangay = '';
       return next;
     });
   };
@@ -202,7 +234,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         birthday: profileForm.birthday || null,
         age: profileForm.age === '' ? null : Number(profileForm.age),
         sex: profileForm.sex,
-        address: profileForm.address,
+        address: formatAddressString(profileForm.addressCity, profileForm.addressProvince, profileForm.addressBarangay) || profileForm.address,
         grade: profileForm.grade,
         strand: profileForm.grade && ['11', '12'].includes(profileForm.grade) ? profileForm.strand : 'N/A',
         section: profileForm.section,
@@ -327,6 +359,33 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     })();
     return () => { cancelled = true; };
   }, [baseUrl, studentsModalOpen]);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics' || !baseUrl) return;
+    setAnalyticsLoading(true);
+    const days = analyticsRange === '8w' ? 56 : analyticsRange === '12w' ? 84 : analyticsRange === 'all' ? 90 : 28;
+    Promise.all([
+      fetch(`${baseUrl}/teacher/activity-by-week`).then((r) => (r.ok ? r.json() : { weeks: [] })),
+      fetch(`${baseUrl}/teacher/activity-by-day?days=${days}`).then((r) => (r.ok ? r.json() : { days: [] })),
+      fetch(`${baseUrl}/teacher/analytics-summary`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`${baseUrl}/teacher/lecture-analytics`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`${baseUrl}/teacher/class-detail`).then((r) => (r.ok ? r.json() : { students: [] })),
+    ])
+      .then(([weekData, dayData, summaryData, lectureData, classDetailData]) => {
+        setActivityByWeek(weekData.weeks || []);
+        setActivityByDay(dayData.days || []);
+        setAnalyticsSummary(summaryData);
+        setLectureAnalytics(lectureData);
+        setClassDetail(classDetailData.students || []);
+      })
+      .catch(() => {
+        setActivityByWeek([]);
+        setActivityByDay([]);
+        setAnalyticsSummary(null);
+        setLectureAnalytics(null);
+      })
+      .finally(() => setAnalyticsLoading(false));
+  }, [activeTab, baseUrl, analyticsRange]);
 
   const refreshStudentsModal = async () => {
     setStudentsModalRefreshing(true);
@@ -685,6 +744,214 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     return rows;
   }, [completionBuckets, completionModalCourse, completionModalStatus]);
 
+  const analyticsSummaryFallback = React.useMemo(() => {
+    const totalStudents = classSummary?.totalStudents ?? students.length ?? 0;
+    const activeLast7Days = (classDetail || []).filter((s) => {
+      if (!s.lastActivity) return false;
+      const days = (Date.now() - new Date(s.lastActivity).getTime()) / (24 * 60 * 60 * 1000);
+      return days < 7;
+    }).length;
+    // Approximate completed activities from existing course progress:
+    // each fully completed lesson slot represents one lecture + one quiz.
+    const totalActivitiesCompleted = (classDetail || []).reduce((sum, s) => {
+      const htmlUnits = Math.round(((s.htmlProgress || 0) / 100) * 6);
+      const cppUnits = Math.round(((s.cppProgress || 0) / 100) * 6);
+      const pythonUnits = Math.round(((s.pythonProgress || 0) / 100) * 6);
+      return sum + (htmlUnits + cppUnits + pythonUnits) * 2;
+    }, 0);
+    const averageProgress = classSummary?.averageProgress ?? 0;
+    return { totalStudents, activeLast7Days, totalActivitiesCompleted, averageProgress };
+  }, [classSummary, students.length, classDetail]);
+
+  const activityByWeekFallback = React.useMemo(() => {
+    const list = classDetail || [];
+    if (list.length === 0) return [];
+
+    const isoWeekKey = (dateValue) => {
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return null;
+      const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = utc.getUTCDay() || 7;
+      utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+      return `${utc.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+    };
+
+    const byWeek = {};
+    list.forEach((student) => {
+      if (!student.lastActivity) return;
+      const week = isoWeekKey(student.lastActivity);
+      if (!week) return;
+      byWeek[week] = (byWeek[week] || 0) + 1;
+    });
+
+    return Object.entries(byWeek)
+      .map(([week, activeCount]) => ({ week, activeCount }))
+      .sort((a, b) => a.week.localeCompare(b.week));
+  }, [classDetail]);
+
+  const activityByWeekDisplay = activityByWeek.length > 0 ? activityByWeek : activityByWeekFallback;
+
+  const activityByDayFallback = React.useMemo(() => {
+    const list = classDetail || [];
+    const daysCount = analyticsRange === '8w' ? 56 : analyticsRange === '12w' ? 84 : analyticsRange === 'all' ? 90 : 28;
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const start = new Date();
+    start.setUTCDate(start.getUTCDate() - daysCount);
+    start.setUTCHours(0, 0, 0, 0);
+    const byDate = {};
+    list.forEach((s) => {
+      if (!s.lastActivity) return;
+      const d = new Date(s.lastActivity);
+      if (Number.isNaN(d.getTime())) return;
+      const dateStr = d.toISOString().slice(0, 10);
+      if (dateStr >= start.toISOString().slice(0, 10)) byDate[dateStr] = (byDate[dateStr] || 0) + 1;
+    });
+    const result = [];
+    for (let i = 0; i < daysCount; i += 1) {
+      const d = new Date(start);
+      d.setUTCDate(start.getUTCDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+      result.push({ date: dateStr, dayLabel: dayLabels[d.getUTCDay()], activeCount: byDate[dateStr] || 0 });
+    }
+    return result;
+  }, [classDetail, analyticsRange]);
+
+  const activityByDayDisplay = activityByDay.length > 0 ? activityByDay : activityByDayFallback;
+
+  const activityRangeWeeks = React.useMemo(() => {
+    const list = activityByWeekDisplay || [];
+    const byWeek = new Map(list.map((item) => [item.week, item.activeCount]));
+    const weeksToShow = analyticsRange === '8w' ? 8 : analyticsRange === '12w' ? 12 : analyticsRange === 'all' ? Math.max(list.length, 12) : 4;
+
+    const isoWeekToDate = (weekKey) => {
+      const m = String(weekKey || '').match(/^(\d{4})-W(\d{2})$/);
+      if (!m) return null;
+      const year = Number(m[1]);
+      const week = Number(m[2]);
+      const jan4 = new Date(Date.UTC(year, 0, 4));
+      const dayOfWeek = jan4.getUTCDay() || 7;
+      const mondayWeek1 = new Date(jan4);
+      mondayWeek1.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1);
+      const monday = new Date(mondayWeek1);
+      monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7);
+      return monday;
+    };
+
+    const dateToIsoWeek = (d) => {
+      const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dayNum = utc.getUTCDay() || 7;
+      utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+      return `${utc.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+    };
+
+    const latestWeekKey = list.length > 0 ? list[list.length - 1].week : dateToIsoWeek(new Date());
+    const latestDate = isoWeekToDate(latestWeekKey) || new Date();
+    const weeks = [];
+    for (let i = weeksToShow - 1; i >= 0; i -= 1) {
+      const d = new Date(latestDate);
+      d.setUTCDate(latestDate.getUTCDate() - (i * 7));
+      const weekKey = dateToIsoWeek(d);
+      weeks.push({ week: weekKey, activeCount: byWeek.get(weekKey) || 0 });
+    }
+    return weeks;
+  }, [activityByWeekDisplay, analyticsRange]);
+  const activityMonthLabel = React.useMemo(() => {
+    if (activityRangeWeeks.length === 0) return '';
+    const parseWeek = (weekKey) => {
+      const m = String(weekKey || '').match(/^(\d{4})-W(\d{2})$/);
+      if (!m) return null;
+      const year = Number(m[1]);
+      const week = Number(m[2]);
+      const jan4 = new Date(Date.UTC(year, 0, 4));
+      const dayOfWeek = jan4.getUTCDay() || 7;
+      const mondayWeek1 = new Date(jan4);
+      mondayWeek1.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1);
+      const monday = new Date(mondayWeek1);
+      monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7);
+      return monday;
+    };
+    const firstDate = parseWeek(activityRangeWeeks[0].week);
+    const lastDate = parseWeek(activityRangeWeeks[activityRangeWeeks.length - 1].week);
+    if (!firstDate || !lastDate) return '';
+    const firstLabel = firstDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+    const lastLabel = lastDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+    return firstLabel === lastLabel ? firstLabel : `${firstLabel} - ${lastLabel}`;
+  }, [activityRangeWeeks]);
+
+  const analyticsRangeDays = analyticsRange === '8w' ? 56 : analyticsRange === '12w' ? 84 : analyticsRange === 'all' ? 3650 : 28;
+  const studentsNeedingAttentionList = React.useMemo(() => {
+    const list = classDetail || [];
+    const rows = list.filter((s) => {
+      const low = (s.overallProgress ?? 0) < LOW_PROGRESS_PCT;
+      const inactive = !s.lastActivity || ((Date.now() - new Date(s.lastActivity).getTime()) / (24 * 60 * 60 * 1000)) >= INACTIVE_DAYS;
+      return low || inactive;
+    }).map((s) => {
+      const inactiveDays = s.lastActivity ? Math.floor((Date.now() - new Date(s.lastActivity).getTime()) / (24 * 60 * 60 * 1000)) : null;
+      return {
+        ...s,
+        attentionReason: (s.overallProgress ?? 0) < LOW_PROGRESS_PCT ? `${s.overallProgress ?? 0}% progress` : `Inactive ${inactiveDays != null ? `${inactiveDays}d` : '—'}`,
+      };
+    });
+    rows.sort((a, b) => (a.overallProgress ?? 0) - (b.overallProgress ?? 0));
+    return rows.slice(0, 4);
+  }, [classDetail, LOW_PROGRESS_PCT, INACTIVE_DAYS]);
+
+  const hardestExercises = React.useMemo(() => {
+    const totalStudents = classSummary?.totalStudents ?? students.length ?? 0;
+    if (!lectureAnalytics || !totalStudents) return [];
+    const rows = [];
+    ['HTML', 'C++', 'Python'].forEach((course) => {
+      const courseRows = lectureAnalytics[course] || {};
+      Object.entries(courseRows).forEach(([lectureId, completedCount]) => {
+        const pct = Math.round((Number(completedCount || 0) / totalStudents) * 100);
+        rows.push({
+          key: `${course}-${lectureId}`,
+          label: `${course} Lecture ${lectureId}`,
+          completedCount: Number(completedCount || 0),
+          pct,
+        });
+      });
+    });
+    return rows.sort((a, b) => a.pct - b.pct || a.label.localeCompare(b.label)).slice(0, 5);
+  }, [lectureAnalytics, classSummary, students.length]);
+
+  const engagementMetrics = React.useMemo(() => {
+    const list = classDetail || [];
+    const totalStudents = list.length;
+    if (totalStudents === 0) {
+      return { activeRate: 0, inactiveCount: 0, avgStartedCourses: 0, avgCompletedLessons: 0, activeLabel: 'Active (7d)' };
+    }
+    const ACTIVE_DAYS = 7;
+    const activeCount = list.filter((s) => {
+      if (!s.lastActivity) return false;
+      const daysSince = (Date.now() - new Date(s.lastActivity).getTime()) / (24 * 60 * 60 * 1000);
+      return daysSince <= ACTIVE_DAYS;
+    }).length;
+    const inactiveCount = totalStudents - activeCount;
+    const avgStartedCourses = list.reduce((sum, s) => {
+      const started = [s.htmlProgress, s.cppProgress, s.pythonProgress].filter((v) => (v ?? 0) > 0).length;
+      return sum + started;
+    }, 0) / totalStudents;
+    const LECTURES_PER_COURSE = 6;
+    const avgCompletedLessons = list.reduce((sum, s) => {
+      const htmlUnits = Math.round(((s.htmlProgress || 0) / 100) * LECTURES_PER_COURSE);
+      const cppUnits = Math.round(((s.cppProgress || 0) / 100) * LECTURES_PER_COURSE);
+      const pythonUnits = Math.round(((s.pythonProgress || 0) / 100) * LECTURES_PER_COURSE);
+      return sum + htmlUnits + cppUnits + pythonUnits;
+    }, 0) / totalStudents;
+    return {
+      activeRate: totalStudents > 0 ? Math.round((activeCount / totalStudents) * 100) : 0,
+      inactiveCount,
+      avgStartedCourses: Number(avgStartedCourses.toFixed(1)),
+      avgCompletedLessons: Number(avgCompletedLessons.toFixed(1)),
+      activeLabel: 'Active (7d)',
+    };
+  }, [classDetail]);
+
   /** Groups for Students modal: by grade → strand (if 11/12) → section. Order within each group comes from filteredStudents (respects Name A–Z / Z–A). */
   const studentsModalGroups = React.useMemo(() => {
     const groups = [];
@@ -945,8 +1212,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                   </button>
                   <button type="button" className="profile-dropdown-item profile-dropdown-item-logout" onClick={() => { setShowProfileDropdown(false); onLogout(); }}>
                     <span className="profile-dropdown-icon">🚪</span>
-                    Logout
-                  </button>
+                Logout
+              </button>
                 </div>
               )}
             </div>
@@ -1016,9 +1283,32 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                         <option value="Other">Other</option>
                       </select>
                     </div>
+                    <div className="profile-form-field">
+                      <label className="profile-form-label">Province</label>
+                      <select name="addressProvince" value={profileForm.addressProvince} onChange={handleProfileFormChange} className="profile-form-input">
+                        <option value="">Select</option>
+                        {addressStructure?.provinces.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="profile-form-field">
+                      <label className="profile-form-label">City / Municipality</label>
+                      <select name="addressCity" value={profileForm.addressCity} onChange={handleProfileFormChange} className="profile-form-input" disabled={!profileForm.addressProvince}>
+                        <option value="">Select</option>
+                        {addressStructure && profileForm.addressProvince && addressStructure.getCities(profileForm.addressProvince).map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="profile-form-field profile-form-field-full">
-                      <label className="profile-form-label">Address</label>
-                      <input type="text" name="address" value={profileForm.address} onChange={handleProfileFormChange} className="profile-form-input" />
+                      <label className="profile-form-label">Barangay</label>
+                      <select name="addressBarangay" value={profileForm.addressBarangay} onChange={handleProfileFormChange} className="profile-form-input" disabled={!profileForm.addressCity}>
+                        <option value="">Select</option>
+                        {addressStructure && profileForm.addressProvince && profileForm.addressCity && addressStructure.getBarangays(profileForm.addressProvince, profileForm.addressCity).map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </section>
@@ -1041,7 +1331,16 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                     </div>
                     <div className="profile-form-field">
                       <label className="profile-form-label">Section</label>
-                      <input type="text" name="section" value={profileForm.section} onChange={handleProfileFormChange} className="profile-form-input" placeholder="e.g. A" />
+                      {['11', '12'].includes(profileForm.grade) && profileForm.strand && profileForm.strand !== 'N/A' ? (
+                        <select name="section" value={profileForm.section} onChange={handleProfileFormChange} className="profile-form-input">
+                          <option value="">Select</option>
+                          {(SECTION_BY_GRADE_STRAND[profileForm.grade]?.[profileForm.strand] || []).map((sec) => (
+                            <option key={sec} value={sec}>{sec}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input type="text" name="section" value={profileForm.section} onChange={handleProfileFormChange} className="profile-form-input" placeholder="Grade 11–12 + Strand to pick section" />
+                      )}
                     </div>
                   </div>
                 </section>
@@ -1102,14 +1401,23 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                   >
                     Announcements
                   </button>
+                  <button
+                    type="button"
+                    className={`teacher-tab ${activeTab === 'analytics' ? 'teacher-tab-active' : ''}`}
+                    onClick={() => setActiveTab('analytics')}
+                  >
+                    Analytics
+                  </button>
                 </nav>
               </aside>
             )}
             <div className="teacher-main-content">
-          <div className="welcome-section">
-            <h2>Welcome back</h2>
-            <p>View your class progress and see how everyone is doing with HTML, C++, and Python.</p>
-          </div>
+          {activeTab === 'overview' && (
+            <div className="welcome-section">
+              <h2>Welcome back</h2>
+              <p>View your class progress and see how everyone is doing with HTML, C++, and Python.</p>
+            </div>
+          )}
 
           {error && (
             <div className="teacher-error">
@@ -1117,7 +1425,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
             </div>
           )}
 
-          {!loading && (
+          {!loading && activeTab === 'overview' && (
             <div className="teacher-class-summary">
               <div className="teacher-summary-stat">
                 <span className="teacher-summary-value">
@@ -1186,6 +1494,312 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 </p>
                 <span className="teacher-overview-card-action">View →</span>
               </div>
+              <div className="teacher-overview-card" onClick={() => setActiveTab('analytics')}>
+                <span className="teacher-overview-card-icon">📈</span>
+                <h4 className="teacher-overview-card-title">Analytics</h4>
+                <p className="teacher-overview-card-desc">
+                  View weekly activity, course progress, skill mastery, and top students
+                </p>
+                <span className="teacher-overview-card-action">View →</span>
+              </div>
+            </div>
+          )}
+
+          {!loading && activeTab === 'analytics' && (
+            <div className="teacher-analytics teacher-analytics-insight">
+              {analyticsLoading ? (
+                <p className="teacher-analytics-loading">Loading analytics…</p>
+              ) : (
+                <>
+                  <div className="teacher-insight-cards-row">
+                    <div className="teacher-insight-card">
+                      <span className="teacher-insight-card-icon teacher-insight-icon-students">👥</span>
+                      <div className="teacher-insight-card-content">
+                        <span className="teacher-insight-card-label">Students</span>
+                        <span className="teacher-insight-card-value">{analyticsSummary?.totalStudents ?? analyticsSummaryFallback.totalStudents}</span>
+                        <span className="teacher-insight-card-sub">Total enrolled</span>
+                      </div>
+                    </div>
+                    <div className="teacher-insight-card">
+                      <span className="teacher-insight-card-icon teacher-insight-icon-active">⚡</span>
+                      <div className="teacher-insight-card-content">
+                        <span className="teacher-insight-card-label">Active students</span>
+                        <span className="teacher-insight-card-value">{engagementMetrics.activeRate}%</span>
+                        <span className="teacher-insight-card-sub">{analyticsRange === '8w' ? 'last 8 weeks' : analyticsRange === '12w' ? 'last 12 weeks' : analyticsRange === 'all' ? 'all time' : 'last 4 weeks'}</span>
+                      </div>
+                    </div>
+                    <div className="teacher-insight-card">
+                      <span className="teacher-insight-card-icon teacher-insight-icon-exercises">✓</span>
+                      <div className="teacher-insight-card-content">
+                        <span className="teacher-insight-card-label">Exercises completed</span>
+                        <span className="teacher-insight-card-value">{analyticsSummary?.totalActivitiesCompleted ?? analyticsSummaryFallback.totalActivitiesCompleted}</span>
+                        <span className="teacher-insight-card-sub">lectures + quizzes</span>
+                      </div>
+                    </div>
+                    <div className="teacher-insight-card">
+                      <span className="teacher-insight-card-icon teacher-insight-icon-score">◎</span>
+                      <div className="teacher-insight-card-content">
+                        <span className="teacher-insight-card-label">Avg progress</span>
+                        <span className="teacher-insight-card-value">{analyticsSummary?.averageProgress != null ? `${analyticsSummary.averageProgress}%` : `${analyticsSummaryFallback.averageProgress}%`}</span>
+                        <span className="teacher-insight-card-sub">overall</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="teacher-analytics-filters">
+                    {[
+                      { value: '4w', label: 'Last 4 Weeks' },
+                      { value: '8w', label: 'Last 8 Weeks' },
+                      { value: '12w', label: 'Last 12 Weeks' },
+                      { value: 'all', label: 'All Time' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`teacher-analytics-filter-btn ${analyticsRange === opt.value ? 'teacher-analytics-filter-btn-active' : ''}`}
+                        onClick={() => setAnalyticsRange(opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="teacher-insight-middle-row">
+                    <div className="teacher-insight-panel teacher-insight-weekly-activity">
+                      <h4 className="teacher-insight-panel-title">Weekly student activity</h4>
+                      {activityMonthLabel && (
+                        <p className="teacher-insight-panel-period">{activityMonthLabel}</p>
+                      )}
+                      {activityRangeWeeks.length === 0 ? (
+                        <p className="teacher-insight-empty">No activity data yet.</p>
+                      ) : (
+                        <>
+                          <div className="teacher-insight-weekly-scroller" style={{ '--weekly-count': activityRangeWeeks.length }}>
+                            <div className="teacher-insight-weekly-chart-inner">
+                              <div className="teacher-insight-line-chart">
+                                {(() => {
+                                  const maxActive = Math.max(...activityRangeWeeks.map((w) => w.activeCount), 1);
+                                  return activityRangeWeeks.map(({ week, activeCount }) => (
+                                    <div key={week} className="teacher-insight-line-point" style={{ height: `${(activeCount / maxActive) * 100}%` }} title={`${week}: ${activeCount} active`} />
+                                  ));
+                                })()}
+                              </div>
+                              <div className="teacher-insight-line-labels">
+                                {activityRangeWeeks.map(({ week }) => (
+                                  <span key={week} className="teacher-insight-line-label" title={week}>{week}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <p className="teacher-insight-panel-meta">
+                            Weekly active: {activityRangeWeeks.length > 0 ? activityRangeWeeks[activityRangeWeeks.length - 1].activeCount : 0} students
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="teacher-insight-panel teacher-insight-course-progress">
+                      <h4 className="teacher-insight-panel-title">Course progress</h4>
+                      {(() => {
+                        const list = classDetail || [];
+                        const total = list.length || 1;
+                        const completed = list.filter((s) => (s.htmlProgress >= 100) || (s.cppProgress >= 100) || (s.pythonProgress >= 100)).length;
+                        const notStarted = list.filter((s) => ((s.htmlProgress || 0) === 0) && ((s.cppProgress || 0) === 0) && ((s.pythonProgress || 0) === 0)).length;
+                        const inProgress = total - completed - notStarted;
+                        const attempts = total - notStarted;
+                        const bars = [
+                          { label: 'Completed', value: completed, total, color: 'done' },
+                          { label: 'Not started', value: notStarted, total, color: 'not' },
+                          { label: 'In progress', value: inProgress, total, color: 'progress' },
+                          { label: 'Attempts', value: attempts, total, color: 'attempts' },
+                        ];
+                        return (
+                          <div className="teacher-insight-hbars">
+                            {bars.map((b) => (
+                              <div key={b.label} className="teacher-insight-hbar-row">
+                                <span className="teacher-insight-hbar-label">{b.label}</span>
+                                <div className="teacher-insight-hbar-wrap">
+                                  <div className={`teacher-insight-hbar teacher-insight-hbar-${b.color}`} style={{ width: `${(b.value / b.total) * 100}%` }} />
+                                </div>
+                                <span className="teacher-insight-hbar-value">{b.value}/{b.total}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="teacher-insight-panel teacher-insight-mastery">
+                      <h4 className="teacher-insight-panel-title">Skill mastery (by course)</h4>
+                      {['HTML', 'C++', 'Python'].map((course) => {
+                        const buckets = perCourseBucketsAll[course] || { completed: [], inProgress: [], notStarted: [] };
+                        const total = classDetail?.length || 0;
+                        const pct = total > 0 ? Math.round((buckets.completed.length / total) * 100) : 0;
+                        return (
+                          <div key={course} className="teacher-insight-mastery-row">
+                            <span className="teacher-insight-mastery-label">{course}</span>
+                            <div className="teacher-insight-mastery-bar-wrap">
+                              <div className="teacher-insight-mastery-bar" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="teacher-insight-mastery-pct">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="teacher-activity-line-section">
+                    <h4 className="teacher-activity-line-title">Active students per day</h4>
+                    <p className="teacher-activity-line-subtitle">One point per calendar day — see how many students were active each day and spot engagement trends or drops</p>
+                    {activityByDayDisplay.length === 0 ? (
+                      <p className="teacher-insight-empty">No daily activity data yet.</p>
+                    ) : (
+                      <div className="teacher-activity-line-chart-scroller">
+                        <div className="teacher-activity-line-chart-wrap">
+                        {(() => {
+                          const data = activityByDayDisplay;
+                          const maxActive = Math.max(...data.map((d) => d.activeCount), 1);
+                          const padding = { top: 12, right: 16, bottom: 32, left: 36 };
+                          const n = data.length;
+                          const minPxPerDay = 26;
+                          const w = Math.max(600, n * minPxPerDay);
+                          const h = 220;
+                          const chartW = w - padding.left - padding.right;
+                          const chartH = h - padding.top - padding.bottom;
+                          const points = data.map((d, i) => {
+                            const x = padding.left + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
+                            const y = padding.top + chartH - (d.activeCount / maxActive) * chartH;
+                            return { x, y, ...d };
+                          });
+                          const pathD = points.length > 0
+                            ? `M ${points.map((p) => `${p.x} ${p.y}`).join(' L ')}`
+                            : '';
+                          return (
+                            <svg className="teacher-activity-line-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" width={w} height={h} aria-label="Active students per day">
+                              <defs>
+                                <linearGradient id="teacher-activity-line-fill" x1="0" y1="1" x2="0" y2="0">
+                                  <stop offset="0%" stopColor="rgba(34, 197, 94, 0.08)" />
+                                  <stop offset="100%" stopColor="rgba(34, 197, 94, 0.35)" />
+                                </linearGradient>
+                              </defs>
+                              <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + chartH} className="teacher-activity-axis" strokeWidth="1" />
+                              <line x1={padding.left} y1={padding.top + chartH} x2={padding.left + chartW} y2={padding.top + chartH} className="teacher-activity-axis" strokeWidth="1" />
+                              {pathD && (
+                                <>
+                                  <path d={`${pathD} L ${points[points.length - 1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`} fill="url(#teacher-activity-line-fill)" />
+                                  <path d={pathD} fill="none" className="teacher-activity-line-path" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </>
+                              )}
+                              {points.map((p, i) => (
+                                <circle key={p.date} cx={p.x} cy={p.y} r={p.activeCount > 0 ? 3 : 0} className="teacher-activity-line-dot" />
+                              ))}
+                              {points.map((p) => {
+                                const [, m, d] = p.date.split('-');
+                                const shortDate = `${Number(m)}/${Number(d)}`;
+                                return (
+                                  <text key={`label-${p.date}`} x={p.x} y={h - 6} textAnchor="middle" className="teacher-activity-line-xlabel">{shortDate}</text>
+                                );
+                              })}
+                              <text x={padding.left - 8} y={padding.top + chartH / 2} textAnchor="middle" className="teacher-activity-line-ylabel" transform={`rotate(-90, ${padding.left - 8}, ${padding.top + chartH / 2})`}>Active students (that day)</text>
+                            </svg>
+                          );
+                        })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="teacher-insight-bottom-row">
+                    <div className="teacher-insight-panel teacher-insight-hardest">
+                      <h4 className="teacher-insight-panel-title">Hardest exercises</h4>
+                      <div className="teacher-insight-table-wrap">
+                        <table className="teacher-insight-table">
+                          <thead>
+                            <tr><th>Exercise</th><th>Completion %</th><th>Done</th></tr>
+                          </thead>
+                          <tbody>
+                            {hardestExercises.map((item) => (
+                              <tr key={item.key}>
+                                <td>{item.label}</td>
+                                <td className={item.pct < 50 ? 'teacher-insight-low' : ''}>{item.pct}%</td>
+                                <td>{item.completedCount}/{classSummary?.totalStudents ?? students.length ?? 0}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div className="teacher-insight-panel teacher-insight-attention">
+                      <h4 className="teacher-insight-panel-title">Students needing attention</h4>
+                      <div className="teacher-insight-top-list">
+                        {studentsNeedingAttentionList.length === 0 ? (
+                          <p className="teacher-insight-empty">No students need attention right now.</p>
+                        ) : (
+                          studentsNeedingAttentionList.map((s) => (
+                            <div key={s.id} className="teacher-insight-top-item">
+                              <div className="teacher-insight-top-avatar">
+                                {s.profile_photo ? (
+                                  <img src={s.profile_photo} alt="" />
+                                ) : (
+                                  <span>{(s.full_name || s.username || '?').toString().charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              <div className="teacher-insight-attention-copy">
+                                <span className="teacher-insight-top-name">{s.full_name || s.username || 'Student'}</span>
+                                <span className="teacher-insight-attention-reason">{s.attentionReason}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    <div className="teacher-insight-panel teacher-insight-engagement">
+                      <h4 className="teacher-insight-panel-title">Engagement metrics</h4>
+                      <div className="teacher-engagement-grid">
+                        <div className="teacher-engagement-metric">
+                          <span className="teacher-engagement-metric-label">Active rate (7d)</span>
+                          <span className="teacher-engagement-metric-value">{engagementMetrics.activeRate}%</span>
+                        </div>
+                        <div className="teacher-engagement-metric">
+                          <span className="teacher-engagement-metric-label">Inactive (7d)</span>
+                          <span className="teacher-engagement-metric-value">{engagementMetrics.inactiveCount}</span>
+                        </div>
+                        <div className="teacher-engagement-metric">
+                          <span className="teacher-engagement-metric-label">Avg started courses</span>
+                          <span className="teacher-engagement-metric-value">{engagementMetrics.avgStartedCourses}</span>
+                        </div>
+                        <div className="teacher-engagement-metric">
+                          <span className="teacher-engagement-metric-label">Avg completed lessons</span>
+                          <span className="teacher-engagement-metric-value">{engagementMetrics.avgCompletedLessons}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="teacher-insight-panel teacher-insight-top">
+                      <h4 className="teacher-insight-panel-title">Top students</h4>
+                      <div className="teacher-insight-top-list">
+                        {(classDetail || [])
+                          .slice()
+                          .sort((a, b) => (b.overallProgress ?? 0) - (a.overallProgress ?? 0))
+                          .slice(0, 4)
+                          .map((s) => (
+                            <div key={s.id} className="teacher-insight-top-item">
+                              <div className="teacher-insight-top-avatar">
+                                {s.profile_photo ? (
+                                  <img src={s.profile_photo} alt="" />
+                                ) : (
+                                  <span>{(s.full_name || s.username || '?').toString().charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              <span className="teacher-insight-top-name">{s.full_name || s.username || 'Student'}</span>
+                              <span className="teacher-insight-top-pct">{s.overallProgress ?? 0}%</span>
+                            </div>
+                          ))}
+                      </div>
+                      {classDetail?.length > 4 && (
+                        <p className="teacher-insight-view-all">{classDetail.length} students total</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1367,8 +1981,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 </div>
                 <div className="teacher-attention-modal-body">
                   <div className="teacher-completion-tabs" role="tablist" aria-label="Completion status">
-                    <button
-                      type="button"
+                      <button
+                        type="button"
                       className={`teacher-completion-tab teacher-completion-tab-completed ${completionModalStatus === 'completed' ? 'teacher-completion-tab-active' : ''}`}
                       onClick={() => setCompletionModalStatus('completed')}
                       role="tab"
@@ -1400,7 +2014,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                       <span>Not started</span>
                       <span className="teacher-completion-tab-count">{(completionBuckets[completionModalCourse]?.notStarted || []).length}</span>
                     </button>
-                  </div>
+                        </div>
 
                   {completionModalRows.length === 0 ? (
                     <div className="teacher-completion-empty">
@@ -1517,7 +2131,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                       title="Clear filters"
                     >
                       Clear
-                    </button>
+                      </button>
                     <button
                       type="button"
                       className="teacher-refresh-btn"
@@ -2091,7 +2705,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 ))}
               </ul>
             )}
-          </div>
+            </div>
           )}
 
           {!loading && activeTab === 'overview' && (

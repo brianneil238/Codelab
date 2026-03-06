@@ -1,10 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Dashboard.css';
 import { useProgress } from './ProgressContext';
+import { buildAddressStructure, formatAddressString, parseAddressString } from './data/philippineAddresses';
 
 const MAX_PHOTO_SIZE = 500 * 1024; // 500KB
 const GRADES = ['11', '12'];
 const STRANDS = ['STEM', 'ABM', 'HUMSS', 'TVL'];
+const SECTION_BY_GRADE_STRAND = {
+  '11': { ABM: ['Taylor', 'Mayo'], HUMSS: ['Pavlov', 'Skinner', 'Kohlberg', 'Brunner', 'Gardner'], STEM: ['Pasteur', 'Newton'], TVL: ['Carver', 'Manzke', 'Comorford'] },
+  '12': { ABM: ['Drucker', 'Gilbreth'], HUMSS: ['Raleigh', 'Aliegheri', 'Henley', 'Cervantes'], STEM: ['Galileo', 'Einstein'], TVL: ['Apicius', 'Jones', 'Ramsay'] },
+};
 
 function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, darkMode = false, onDarkModeChange }) {
   const { getCourseProgress, getOverallProgress, getStreak, stats, isLoading, refreshProgress } = useProgress();
@@ -15,8 +20,9 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileForm, setProfileForm] = useState({
-    lastName: '', firstName: '', middleName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '', contact: '',
+    lastName: '', firstName: '', middleName: '', username: '', birthday: '', age: '', sex: '', address: '', addressProvince: '', addressCity: '', addressBarangay: '', grade: '', strand: '', section: '', email: '', contact: '',
   });
+  const [addressStructure, setAddressStructure] = useState(null);
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
   const [announcement, setAnnouncement] = useState(null);
@@ -59,6 +65,13 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    fetch('/philippine_provinces_cities_municipalities_and_barangays_2019v2.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setAddressStructure(data ? buildAddressStructure(data) : null))
+      .catch(() => setAddressStructure(null));
+  }, []);
+
   const overallProgress = getOverallProgress();
   const streak = getStreak();
 
@@ -81,6 +94,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
         firstName = parts[0];
       }
     }
+    const parsed = parseAddressString(user?.address ?? '');
     setProfileForm({
       lastName,
       firstName,
@@ -90,6 +104,9 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
       age: user?.age !== undefined && user?.age !== null ? String(user.age) : '',
       sex: user?.sex ?? '',
       address: user?.address ?? '',
+      addressProvince: parsed.province,
+      addressCity: parsed.city,
+      addressBarangay: parsed.barangay,
       grade: user?.grade ?? '',
       strand: user?.strand ?? '',
       section: user?.section ?? '',
@@ -133,7 +150,16 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
     const { name, value } = e.target;
     setProfileForm((prev) => {
       const next = { ...prev, [name]: value };
-      if (name === 'grade' && !['11', '12'].includes(value)) next.strand = 'N/A';
+      if (name === 'grade' && !['11', '12'].includes(value)) {
+        next.strand = 'N/A';
+        next.section = '';
+      }
+      if (name === 'strand') next.section = '';
+      if (name === 'addressProvince') {
+        next.addressCity = '';
+        next.addressBarangay = '';
+      }
+      if (name === 'addressCity') next.addressBarangay = '';
       return next;
     });
   };
@@ -151,7 +177,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
         birthday: profileForm.birthday || null,
         age: profileForm.age === '' ? null : Number(profileForm.age),
         sex: profileForm.sex,
-        address: profileForm.address,
+        address: formatAddressString(profileForm.addressCity, profileForm.addressProvince, profileForm.addressBarangay) || profileForm.address,
         grade: profileForm.grade,
         strand: profileForm.grade && ['11', '12'].includes(profileForm.grade) ? profileForm.strand : 'N/A',
         section: profileForm.section,
@@ -349,9 +375,32 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                       placeholder="e.g. 09XX‑XXX‑XXXX"
                     />
                   </div>
+                  <div className="profile-form-field">
+                    <label className="profile-form-label">Province</label>
+                    <select name="addressProvince" value={profileForm.addressProvince} onChange={handleProfileFormChange} className="profile-form-input" aria-label="Province">
+                      <option value="">Select</option>
+                      {addressStructure?.provinces.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="profile-form-field">
+                    <label className="profile-form-label">City / Municipality</label>
+                    <select name="addressCity" value={profileForm.addressCity} onChange={handleProfileFormChange} className="profile-form-input" disabled={!profileForm.addressProvince}>
+                      <option value="">Select</option>
+                      {addressStructure && profileForm.addressProvince && addressStructure.getCities(profileForm.addressProvince).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="profile-form-field profile-form-field-full">
-                    <label className="profile-form-label">Address</label>
-                    <input type="text" name="address" value={profileForm.address} onChange={handleProfileFormChange} className="profile-form-input" />
+                    <label className="profile-form-label">Barangay</label>
+                    <select name="addressBarangay" value={profileForm.addressBarangay} onChange={handleProfileFormChange} className="profile-form-input" disabled={!profileForm.addressCity}>
+                      <option value="">Select</option>
+                      {addressStructure && profileForm.addressProvince && profileForm.addressCity && addressStructure.getBarangays(profileForm.addressProvince, profileForm.addressCity).map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </section>
@@ -374,7 +423,16 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                   </div>
                   <div className="profile-form-field">
                     <label className="profile-form-label">Section</label>
-                    <input type="text" name="section" value={profileForm.section} onChange={handleProfileFormChange} className="profile-form-input" placeholder="e.g. A" />
+                    {['11', '12'].includes(profileForm.grade) && profileForm.strand && profileForm.strand !== 'N/A' ? (
+                      <select name="section" value={profileForm.section} onChange={handleProfileFormChange} className="profile-form-input">
+                        <option value="">Select</option>
+                        {(SECTION_BY_GRADE_STRAND[profileForm.grade]?.[profileForm.strand] || []).map((sec) => (
+                          <option key={sec} value={sec}>{sec}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input type="text" name="section" value={profileForm.section} onChange={handleProfileFormChange} className="profile-form-input" placeholder="Grade 11–12 + Strand to pick section" readOnly disabled />
+                    )}
                   </div>
                 </div>
               </section>

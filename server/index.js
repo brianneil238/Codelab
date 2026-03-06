@@ -711,6 +711,113 @@ app.get('/teacher/export-progress', async (req, res) => {
   }
 });
 
+// Activity by week (for analytics: student activity per week, grouped by month)
+app.get('/teacher/activity-by-week', async (req, res) => {
+  try {
+    const studentRows = await users.find({ role: 'student' }).project({ _id: 1 }).toArray();
+    const studentIds = studentRows.map((r) => r._id.toString());
+    if (studentIds.length === 0) {
+      return res.status(200).json({ weeks: [] });
+    }
+    const weeks = await userProgress.aggregate([
+      { $match: { user_id: { $in: studentIds }, last_updated: { $exists: true, $ne: null } } },
+      { $project: { week: { $dateToString: { date: '$last_updated', format: '%Y-W%V' } }, user_id: 1 } },
+      { $group: { _id: '$week', users: { $addToSet: '$user_id' } } },
+      { $project: { week: '$_id', activeCount: { $size: '$users' } } },
+      { $sort: { week: 1 } },
+      { $limit: 52 },
+    ]).toArray();
+    res.status(200).json({ weeks: weeks.map((w) => ({ week: w.week, activeCount: w.activeCount })) });
+  } catch (error) {
+    console.error('Activity by week error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Activity by day (for main line graph: active students per day)
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+app.get('/teacher/activity-by-day', async (req, res) => {
+  try {
+    const studentRows = await users.find({ role: 'student' }).project({ _id: 1 }).toArray();
+    const studentIds = studentRows.map((r) => r._id.toString());
+    if (studentIds.length === 0) {
+      return res.status(200).json({ days: [] });
+    }
+    const daysParam = Math.min(Math.max(parseInt(req.query.days, 10) || 28, 7), 90);
+    const startDate = new Date();
+    startDate.setUTCDate(startDate.getUTCDate() - daysParam);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const byDay = await userProgress.aggregate([
+      { $match: { user_id: { $in: studentIds }, last_updated: { $exists: true, $gte: startDate } } },
+      { $project: { dateStr: { $dateToString: { date: '$last_updated', format: '%Y-%m-%d' } }, user_id: 1 } },
+      { $group: { _id: '$dateStr', users: { $addToSet: '$user_id' } } },
+      { $project: { date: '$_id', activeCount: { $size: '$users' } } },
+      { $sort: { date: 1 } },
+    ]).toArray();
+
+    const byDateMap = new Map(byDay.map((d) => [d.date, d.activeCount]));
+    const result = [];
+    for (let i = 0; i < daysParam; i += 1) {
+      const d = new Date(startDate);
+      d.setUTCDate(startDate.getUTCDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayLabel = DAY_LABELS[d.getUTCDay()];
+      result.push({
+        date: dateStr,
+        dayLabel,
+        activeCount: byDateMap.get(dateStr) || 0,
+      });
+    }
+    res.status(200).json({ days: result });
+  } catch (error) {
+    console.error('Activity by day error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Analytics insight summary (for teacher dashboard cards)
+app.get('/teacher/analytics-summary', async (req, res) => {
+  try {
+    const studentRows = await users.find({ role: 'student' }).project({ _id: 1 }).toArray();
+    const studentIds = studentRows.map((r) => r._id.toString());
+    const totalStudents = studentIds.length;
+    if (totalStudents === 0) {
+      return res.status(200).json({
+        totalStudents: 0,
+        activeLast7Days: 0,
+        totalActivitiesCompleted: 0,
+        averageProgress: 0,
+      });
+    }
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [activeAgg, completedCount, allProgress] = await Promise.all([
+      userProgress.distinct('user_id', { user_id: { $in: studentIds }, last_updated: { $gte: sevenDaysAgo } }),
+      userProgress.countDocuments({ user_id: { $in: studentIds }, completed: true }),
+      userProgress.find({ user_id: { $in: studentIds } }).toArray(),
+    ]);
+    const byUser = {};
+    for (const p of allProgress) {
+      if (!byUser[p.user_id]) byUser[p.user_id] = [];
+      byUser[p.user_id].push(p);
+    }
+    let sumProgress = 0;
+    for (const uid of studentIds) {
+      sumProgress += overallProgressFromItems(byUser[uid] || []);
+    }
+    const averageProgress = Math.round(sumProgress / totalStudents);
+    res.status(200).json({
+      totalStudents,
+      activeLast7Days: activeAgg.length,
+      totalActivitiesCompleted: completedCount,
+      averageProgress,
+    });
+  } catch (error) {
+    console.error('Analytics summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Announcements: list (for students) and create (for teacher)
 app.get('/teacher/announcements', async (req, res) => {
   try {
