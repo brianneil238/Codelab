@@ -8,7 +8,7 @@ import Achievements, { getAchievementTitle, getAchievementXp } from './Achieveme
 import Challenges from './Challenges';
 import FAQ from './FAQ';
 import { ProgressProvider } from './ProgressContext';
-import bikeRentalLogo from './assets/university_bike_rental_logo.png';
+import codelabLogo from './assets/codelab-icon.png';
 import schoolLogo from './assets/school-logo.png';
 import { buildAddressStructure, formatAddressString, parseAddressString } from './data/philippineAddresses';
 
@@ -23,7 +23,7 @@ function App() {
     lastName: '',
     firstName: '',
     middleName: '',
-    username: '',
+    lrn: '',
     contact: '',
     birthday: '',
     age: '',
@@ -181,7 +181,7 @@ function App() {
       if (response.ok) {
         if (isLogin) {
           setMessage(data.message);
-          const displayName = data?.user?.fullName || data?.user?.username || 'User';
+          const displayName = data?.user?.fullName || data?.user?.firstName || 'User';
           showToast(`Login successful. Welcome, ${displayName}!`);
           setTimeout(() => {
             setUser(data.user);
@@ -205,7 +205,7 @@ function App() {
         } else {
           setMessage(data.message || data.error || 'An error occurred');
           const msg = (data.message || data.error || '').toLowerCase();
-          if (!isLogin && (msg.includes('all required fields') || msg.includes('enter full name') || msg.includes('last name and first name') || msg.includes('employee number'))) {
+          if (!isLogin && (msg.includes('all required fields') || msg.includes('enter full name') || msg.includes('last name and first name') || msg.includes('employee number') || msg.includes('lrn') || msg.includes('12 digits'))) {
             setEmptyFieldNames(getEmptyRequiredFields(formData, userType));
           }
         }
@@ -252,7 +252,6 @@ function App() {
     const empty = [];
     if (role === 'teacher') {
       if (!(data.fullName || '').trim()) empty.push('fullName');
-      if (!(data.username || '').trim()) empty.push('username');
       if (!(data.email || '').trim()) empty.push('email');
       if (!(data.password || '').trim()) empty.push('password');
       const emp = (data.employeeNumber || '').toString().replace(/\D/g, '');
@@ -261,7 +260,8 @@ function App() {
     }
     if (!(data.lastName || '').trim()) empty.push('lastName');
     if (!(data.firstName || '').trim()) empty.push('firstName');
-    if (!(data.username || '').trim()) empty.push('username');
+    const lrnDigits = (data.lrn || '').toString().replace(/\D/g, '');
+    if (!lrnDigits || lrnDigits.length !== 12) empty.push('lrn');
     if (!(data.contact || '').toString().trim()) empty.push('contact');
     if (!(data.birthday || '').trim()) empty.push('birthday');
     if (data.age === '' || data.age == null) empty.push('age');
@@ -357,7 +357,7 @@ function App() {
       lastName: '',
       firstName: '',
       middleName: '',
-      username: '',
+      lrn: '',
       contact: '',
       birthday: '',
       age: '',
@@ -622,7 +622,7 @@ function App() {
           <div className="login-form-section">
             <div className="form-content">
               <div className="university-bike-rental-header">
-                <img src={bikeRentalLogo} alt="CodeLab Logo" className="bike-rental-logo" />
+                <img src={codelabLogo} alt="CodeLab Logo" className="bike-rental-logo" />
                 <div className="university-bike-rental-text">
                   <h2>CodeLab</h2>
                   <p>Think. Code. Create</p>
@@ -657,10 +657,6 @@ function App() {
                   <div className={`input-group teacher-input ${emptyFieldNames.includes('fullName') ? 'field-error' : ''}`}>
                     <i className="fas fa-user"></i>
                     <input type="text" placeholder="Full Name" name="fullName" value={formData.fullName} onChange={handleInputChange} required />
-                  </div>
-                  <div className={`input-group teacher-input ${emptyFieldNames.includes('username') ? 'field-error' : ''}`}>
-                    <i className="fas fa-at"></i>
-                    <input type="text" placeholder="Username" name="username" value={formData.username} onChange={handleInputChange} required />
                   </div>
                 </div>
                 <div className="form-row">
@@ -735,9 +731,19 @@ function App() {
                     <i className="fas fa-user"></i>
                     <input type="text" placeholder="Middle Name" name="middleName" value={formData.middleName} onChange={handleInputChange} />
                   </div>
-                  <div className={`input-group ${emptyFieldNames.includes('username') ? 'field-error' : ''}`}>
-                    <i className="fas fa-at"></i>
-                    <input type="text" placeholder="Username" name="username" value={formData.username} onChange={handleInputChange} required />
+                  <div className={`input-group ${emptyFieldNames.includes('lrn') ? 'field-error' : ''}`}>
+                    <i className="fas fa-id-card"></i>
+                    <input
+                      type="text"
+                      placeholder="LRN (12 digits)"
+                      name="lrn"
+                      value={formData.lrn}
+                      onChange={handleInputChange}
+                      inputMode="numeric"
+                      maxLength={12}
+                      required
+                      aria-label="LRN 12 digits"
+                    />
                   </div>
                 </div>
                 <div className="form-row">

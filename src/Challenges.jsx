@@ -469,16 +469,20 @@ function Challenges({ onBack, darkMode = false, user, onAchievementUnlocked }) {
       }
 
       if (passed && user?.id && baseUrl) {
+        const wasAlreadyCompleted = completedChallengeIds.has(current.id);
         setCompletedChallengeIds((prev) => new Set([...prev, current.id]));
+        if (wasAlreadyCompleted) return; // Don't award again for the same challenge (no farming)
         try {
           const achRes = await fetch(`${baseUrl}/achievements`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user.id, key: `challenge:${current.id}` }),
           });
-          if (achRes.ok) {
+          if (!achRes.ok) return;
+          const data = await achRes.json().catch(() => ({}));
+          if (data.inserted) {
             if (onAchievementUnlocked) onAchievementUnlocked(`challenge:${current.id}`);
-            refreshProgress(); // update "Challenges Completed" and other stats on dashboard
+            refreshProgress();
           }
         } catch (e) {
           // ignore

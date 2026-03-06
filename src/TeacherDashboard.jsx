@@ -54,7 +54,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileForm, setProfileForm] = useState({
-    fullName: '', username: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '',
+    fullName: '', firstName: '', birthday: '', age: '', sex: '', address: '', grade: '', strand: '', section: '', email: '',
   });
   const fileInputRef = useRef(null);
   const announcementInputRef = useRef(null);
@@ -86,6 +86,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   const [lectureAnalytics, setLectureAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsRange, setAnalyticsRange] = useState('4w');
+  const [activityChartHover, setActivityChartHover] = useState(null); // { x, y, label, activeCount, key } when hovering a data point
 
   const baseUrl = baseUrlProp ?? (import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || 'https://codelab-api-qq4v.onrender.com'));
 
@@ -157,9 +158,10 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     setProfileFile(null);
     setProfileError('');
     const parsed = parseAddressString(user?.address ?? '');
+    const derivedFirst = user?.firstName ?? (user?.fullName ? String(user.fullName).trim().split(/\s+/)[0] : '');
     setProfileForm({
       fullName: user?.fullName ?? '',
-      username: user?.username ?? '',
+      firstName: derivedFirst,
       birthday: user?.birthday ?? '',
       age: user?.age !== undefined && user?.age !== null ? String(user.age) : '',
       sex: user?.sex ?? '',
@@ -230,7 +232,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     try {
       const payload = {
         fullName: profileForm.fullName.trim(),
-        username: profileForm.username.trim(),
+        firstName: (profileForm.firstName || '').trim(),
         birthday: profileForm.birthday || null,
         age: profileForm.age === '' ? null : Number(profileForm.age),
         sex: profileForm.sex,
@@ -321,7 +323,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
           const data = await resp.json().catch(() => ({}));
           setAnnouncements([]);
           if (resp.status === 404) {
-            setAnnouncementError('Announcements endpoint not found (404). Restart the backend server (port 5000) to load the latest announcement features.');
+            setAnnouncementError('Announcements endpoint not found (404). If you\'re on the deployed app: set VITE_API_URL in Vercel to your backend URL (e.g. Render) and redeploy the backend so it has the /teacher/announcements route. If local: start the backend (e.g. port 5000).');
           } else {
             setAnnouncementError(data.message || data.error || `Failed to load announcements (${resp.status}).`);
           }
@@ -409,20 +411,39 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   };
 
   const performDeleteStudent = async (student) => {
-    setDeletingStudentId(student.id);
+    const userId = student?.id;
+    if (!userId) {
+      alert('Invalid student.');
+      return;
+    }
+    setDeletingStudentId(userId);
     setDeleteConfirmStudent(null);
     try {
-      const res = await fetch(`${baseUrl}/users/${student.id}`, { method: 'DELETE' });
+      let authHeader = {};
+      try {
+        const saved = localStorage.getItem('codelab-auth');
+        if (saved) {
+          const { token } = JSON.parse(saved);
+          if (token) authHeader = { Authorization: `Bearer ${token}` };
+        }
+      } catch (_) {}
+      const res = await fetch(`${baseUrl}/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        credentials: 'same-origin',
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.message || data.error || 'Failed to delete student');
+        const msg = data.message || data.error || data.details || `Delete failed (${res.status})`;
+        alert(msg);
         return;
       }
-      if (selectedStudent?.id === student.id) setSelectedStudent(null);
+      if (selectedStudent?.id === userId) setSelectedStudent(null);
       setStudentProgress(null);
       await refreshStudentsModal();
-    } catch {
-      alert('Network error. Could not delete student.');
+    } catch (e) {
+      const msg = e?.message || 'Network error. Could not delete student. Check your connection and that the API is reachable.';
+      alert(msg);
     } finally {
       setDeletingStudentId(null);
     }
@@ -506,11 +527,11 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
   // Filter and sort students for the list
   const filteredStudents = React.useMemo(() => {
     let list = students.filter((s) => {
-      const name = (s.full_name || s.username || '').toLowerCase();
-      const username = (s.username || '').toLowerCase();
+      const name = (s.full_name || s.first_name || '').toLowerCase();
+      const lrn = (s.lrn || '').toLowerCase();
       const email = (s.email || '').toLowerCase();
       const q = searchQuery.trim().toLowerCase();
-      if (q && !name.includes(q) && !username.includes(q) && !email.includes(q)) return false;
+      if (q && !name.includes(q) && !lrn.includes(q) && !email.includes(q)) return false;
       if (filterGrade && (s.grade || '') !== filterGrade) return false;
       if (filterStrand && (s.strand || '') !== filterStrand) return false;
       if (filterSection && (s.section || '') !== filterSection) return false;
@@ -525,7 +546,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         const mi = mn ? (mn[0] || '').toUpperCase() + '.' : '';
         return `${ln}, ${fn} ${mi}`.trim().toLowerCase();
       }
-      return (s.full_name || s.username || '').toLowerCase();
+      return (s.full_name || s.first_name || s.lrn || '').toLowerCase();
     };
     const order = sortBy === 'name-desc' ? -1 : 1;
     list = [...list].sort((a, b) => {
@@ -611,10 +632,10 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     const q = (overviewSearch || '').trim().toLowerCase();
     return list.filter((s) => {
       if (q) {
-        const name = (s.full_name || s.username || '').toLowerCase();
-        const username = (s.username || '').toLowerCase();
+        const name = (s.full_name || s.first_name || s.lrn || '').toLowerCase();
+        const lrnStr = (s.lrn || '').toLowerCase();
         const email = (s.email || '').toLowerCase();
-        if (!name.includes(q) && !username.includes(q) && !email.includes(q)) return false;
+        if (!name.includes(q) && !lrnStr.includes(q) && !email.includes(q)) return false;
       }
       if (overviewGrade && (s.grade || '') !== overviewGrade) return false;
       if (overviewStrand && (s.strand || '') !== overviewStrand) return false;
@@ -668,8 +689,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         const ta = a.lastActivity ? new Date(a.lastActivity).getTime() : -1;
         const tb = b.lastActivity ? new Date(b.lastActivity).getTime() : -1;
         if (ta !== tb) return ta - tb; // oldest first; never(-1) first
-        const na = (a.full_name || a.username || '').toLowerCase();
-        const nb = (b.full_name || b.username || '').toLowerCase();
+        const na = (a.full_name || a.first_name || a.lrn || '').toLowerCase();
+        const nb = (b.full_name || b.first_name || b.lrn || '').toLowerCase();
         return na < nb ? -1 : na > nb ? 1 : 0;
       });
     } else {
@@ -677,8 +698,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         const pa = a.overallProgress ?? 0;
         const pb = b.overallProgress ?? 0;
         if (pa !== pb) return pa - pb;
-        const na = (a.full_name || a.username || '').toLowerCase();
-        const nb = (b.full_name || b.username || '').toLowerCase();
+        const na = (a.full_name || a.first_name || a.lrn || '').toLowerCase();
+        const nb = (b.full_name || b.first_name || b.lrn || '').toLowerCase();
         return na < nb ? -1 : na > nb ? 1 : 0;
       });
     }
@@ -721,8 +742,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         const pa = a.coursePct ?? 0;
         const pb = b.coursePct ?? 0;
         if (pa !== pb) return pb - pa; // highest first
-        const na = (a.full_name || a.username || '').toLowerCase();
-        const nb = (b.full_name || b.username || '').toLowerCase();
+        const na = (a.full_name || a.first_name || a.lrn || '').toLowerCase();
+        const nb = (b.full_name || b.first_name || b.lrn || '').toLowerCase();
         return na < nb ? -1 : na > nb ? 1 : 0;
       });
     } else if (completionModalStatus === 'notStarted') {
@@ -730,14 +751,14 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
         const ta = a.lastActivity ? new Date(a.lastActivity).getTime() : -1;
         const tb = b.lastActivity ? new Date(b.lastActivity).getTime() : -1;
         if (ta !== tb) return ta - tb; // oldest/never first
-        const na = (a.full_name || a.username || '').toLowerCase();
-        const nb = (b.full_name || b.username || '').toLowerCase();
+        const na = (a.full_name || a.first_name || a.lrn || '').toLowerCase();
+        const nb = (b.full_name || b.first_name || b.lrn || '').toLowerCase();
         return na < nb ? -1 : na > nb ? 1 : 0;
       });
     } else {
       rows.sort((a, b) => {
-        const na = (a.full_name || a.username || '').toLowerCase();
-        const nb = (b.full_name || b.username || '').toLowerCase();
+        const na = (a.full_name || a.first_name || a.lrn || '').toLowerCase();
+        const nb = (b.full_name || b.first_name || b.lrn || '').toLowerCase();
         return na < nb ? -1 : na > nb ? 1 : 0;
       });
     }
@@ -882,6 +903,46 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     return firstLabel === lastLabel ? firstLabel : `${firstLabel} - ${lastLabel}`;
   }, [activityRangeWeeks]);
 
+  const activityChartByWeek = analyticsRange === '12w' || analyticsRange === 'all';
+  const activityChartData = React.useMemo(() => {
+    if (activityChartByWeek) {
+      return activityRangeWeeks.map(({ week, activeCount }) => ({ key: week, label: week.replace(/^\d{4}-W/, 'W'), activeCount }));
+    }
+    return activityByDayDisplay.map((d) => {
+      const [, m, d2] = d.date.split('-');
+      return { key: d.date, label: `${Number(m)}/${Number(d2)}`, activeCount: d.activeCount };
+    });
+  }, [activityChartByWeek, activityRangeWeeks, activityByDayDisplay]);
+
+  const activityChartPeak = React.useMemo(() => {
+    if (activityChartData.length === 0) return null;
+    return activityChartData.reduce((best, d) => (d.activeCount > best.activeCount ? d : best), activityChartData[0]);
+  }, [activityChartData]);
+
+  const activityChartLowest = React.useMemo(() => {
+    if (activityChartData.length === 0) return null;
+    return activityChartData.reduce((low, d) => (d.activeCount < low.activeCount ? d : low), activityChartData[0]);
+  }, [activityChartData]);
+
+  const formatActivityChartDateLabel = (point) => {
+    if (!point?.key) return point?.label ?? '';
+    const key = point.key;
+    const weekMatch = key.match(/^(\d{4})-W(\d{1,2})$/);
+    if (weekMatch) {
+      const [, year, weekNum] = weekMatch;
+      const jan4 = new Date(Number(year), 0, 4);
+      const mon = new Date(jan4);
+      mon.setDate(jan4.getDate() - (jan4.getDay() || 7) + 1 + (Number(weekNum) - 1) * 7);
+      return `Week of ${mon.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+    }
+    const d = new Date(key);
+    if (Number.isNaN(d.getTime())) return point.label ?? '';
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const activityChartPeakDateLabel = React.useMemo(() => formatActivityChartDateLabel(activityChartPeak), [activityChartPeak]);
+  const activityChartLowestDateLabel = React.useMemo(() => formatActivityChartDateLabel(activityChartLowest), [activityChartLowest]);
+
   const analyticsRangeDays = analyticsRange === '8w' ? 56 : analyticsRange === '12w' ? 84 : analyticsRange === 'all' ? 3650 : 28;
   const studentsNeedingAttentionList = React.useMemo(() => {
     const list = classDetail || [];
@@ -952,8 +1013,22 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     };
   }, [classDetail]);
 
-  /** Groups for Students modal: by grade → strand (if 11/12) → section. Order within each group comes from filteredStudents (respects Name A–Z / Z–A). */
+  /** Sort key for student name (Last, First M.I.) so A–Z / Z–A matches display. */
+  const studentListSortKey = (s) => {
+    const ln = (s.last_name || '').toString().trim();
+    const fn = (s.first_name || '').toString().trim();
+    const mn = (s.middle_name || '').toString().trim();
+    if (ln || fn) {
+      const mi = mn ? (mn[0] || '').toUpperCase() + '.' : '';
+      return `${ln}, ${fn} ${mi}`.trim().toLowerCase();
+    }
+    return (s.full_name || s.first_name || s.lrn || '').toLowerCase();
+  };
+
+  /** Groups for Students modal: by grade → strand (if 11/12) → section. Order within each group explicitly sorted by sortBy so mobile/desktop match. */
   const studentsModalGroups = React.useMemo(() => {
+    const order = sortBy === 'name-desc' ? -1 : 1;
+    const compare = (a, b) => order * (studentListSortKey(a) < studentListSortKey(b) ? -1 : studentListSortKey(a) > studentListSortKey(b) ? 1 : 0);
     const groups = [];
     const gss = studentsByGradeStrandSection;
     for (const g of GRADES) {
@@ -972,12 +1047,12 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
           const strandLabel = (g === '11' || g === '12') && str ? ` ${str}` : '';
           const sectionLabel = sec && sec !== '—' ? ` ${sec}` : (sec === '—' ? '' : ` ${sec}`);
           const label = `Grade ${g}${strandLabel}${sectionLabel}`.trim() || `Grade ${g}`;
-          groups.push({ label, students: list });
+          groups.push({ label, students: [...list].sort(compare) });
         }
       }
     }
     return groups;
-  }, [studentsByGradeStrandSection]);
+  }, [studentsByGradeStrandSection, sortBy]);
 
   // Per-course completion buckets from filtered list
   const perCourseBuckets = React.useMemo(() => {
@@ -985,7 +1060,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     const out = { HTML: { completed: [], inProgress: [], notStarted: [] }, 'C++': { completed: [], inProgress: [], notStarted: [] }, Python: { completed: [], inProgress: [], notStarted: [] } };
     const courses = ['HTML', 'C++', 'Python'];
     list.forEach((s) => {
-      const name = s.full_name || s.username || '—';
+      const name = s.full_name || s.first_name || s.lrn || '—';
       courses.forEach((course) => {
         const pct = course === 'HTML' ? s.htmlProgress : course === 'C++' ? s.cppProgress : s.pythonProgress;
         const v = pct ?? 0;
@@ -1003,7 +1078,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     const out = { HTML: { completed: [], inProgress: [], notStarted: [] }, 'C++': { completed: [], inProgress: [], notStarted: [] }, Python: { completed: [], inProgress: [], notStarted: [] } };
     const courses = ['HTML', 'C++', 'Python'];
     list.forEach((s) => {
-      const name = s.full_name || s.username || '—';
+      const name = s.full_name || s.first_name || s.lrn || '—';
       courses.forEach((course) => {
         const pct = course === 'HTML' ? s.htmlProgress : course === 'C++' ? s.cppProgress : s.pythonProgress;
         const v = pct ?? 0;
@@ -1074,7 +1149,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
           target: data.target || null,
         }, ...prev]);
       } else {
-        setAnnouncementError(data.message || data.error || `Failed to post (${resp.status}). Restart the server if you just added announcements.`);
+        setAnnouncementError(data.message || data.error || `Failed to post (${resp.status}). If deployed, ensure the backend is up and has the POST /announcements route.`);
       }
     } catch (err) {
       setAnnouncementError(err.message || 'Network error. Is the server running?');
@@ -1172,7 +1247,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
     }
   };
 
-  const initial = user?.fullName ? user.fullName.charAt(0) : (user?.username || 'T').charAt(0);
+  const initial = (user?.firstName || user?.fullName || 'T').toString().charAt(0);
 
   return (
     <div className={`dashboard${darkMode ? ' dashboard-dark' : ''}`}>
@@ -1197,7 +1272,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 ) : (
                   <div className="user-avatar">{initial}</div>
                 )}
-                <span className="user-name">{user?.username || user?.fullName}</span>
+                <span className="user-name">{user?.firstName || user?.fullName}</span>
                 <span className="profile-dropdown-chevron" aria-hidden>▼</span>
               </button>
               {showProfileDropdown && (
@@ -1259,8 +1334,8 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                       <input type="text" name="fullName" value={profileForm.fullName} onChange={handleProfileFormChange} className="profile-form-input" />
                     </div>
                     <div className="profile-form-field">
-                      <label className="profile-form-label">Username</label>
-                      <input type="text" name="username" value={profileForm.username} onChange={handleProfileFormChange} className="profile-form-input" />
+                      <label className="profile-form-label">First name</label>
+                      <input type="text" name="firstName" value={profileForm.firstName} onChange={handleProfileFormChange} className="profile-form-input" />
                     </div>
                     <div className="profile-form-field">
                       <label className="profile-form-label">Email</label>
@@ -1508,7 +1583,13 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
           {!loading && activeTab === 'analytics' && (
             <div className="teacher-analytics teacher-analytics-insight">
               {analyticsLoading ? (
-                <p className="teacher-analytics-loading">Loading analytics…</p>
+                <div className="teacher-analytics-loading-wrap">
+                  <div className="teacher-analytics-spinner" aria-hidden="true" />
+                  <p className="teacher-analytics-loading">
+                    <span className="teacher-analytics-loading-text">Loading analytics</span>
+                    <span className="teacher-analytics-loading-dots"><span>.</span><span>.</span><span>.</span></span>
+                  </p>
+                </div>
               ) : (
                 <>
                   <div className="teacher-insight-cards-row">
@@ -1647,20 +1728,25 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                   </div>
 
                   <div className="teacher-activity-line-section">
-                    <h4 className="teacher-activity-line-title">Active students per day</h4>
-                    <p className="teacher-activity-line-subtitle">One point per calendar day — see how many students were active each day and spot engagement trends or drops</p>
-                    {activityByDayDisplay.length === 0 ? (
-                      <p className="teacher-insight-empty">No daily activity data yet.</p>
+                    <h4 className="teacher-activity-line-title">{activityChartByWeek ? 'Active students per week' : 'Active students per day'}</h4>
+                    <p className="teacher-activity-line-subtitle">
+                      {activityChartByWeek
+                        ? 'One point per week — better for reading long ranges (12 weeks or all time)'
+                        : 'One point per calendar day — see how many students were active each day and spot engagement trends or drops'}
+                    </p>
+                    {activityChartData.length === 0 ? (
+                      <p className="teacher-insight-empty">{activityChartByWeek ? 'No weekly activity data yet.' : 'No daily activity data yet.'}</p>
                     ) : (
-                      <div className="teacher-activity-line-chart-scroller">
-                        <div className="teacher-activity-line-chart-wrap">
+                      <div className="teacher-activity-line-chart-row">
+                        <div className="teacher-activity-line-chart-scroller">
+                          <div className="teacher-activity-line-chart-wrap">
                         {(() => {
-                          const data = activityByDayDisplay;
+                          const data = activityChartData;
                           const maxActive = Math.max(...data.map((d) => d.activeCount), 1);
                           const padding = { top: 12, right: 16, bottom: 32, left: 36 };
                           const n = data.length;
-                          const minPxPerDay = 26;
-                          const w = Math.max(600, n * minPxPerDay);
+                          const minPxPerPoint = activityChartByWeek ? 40 : 26;
+                          const w = Math.max(600, n * minPxPerPoint);
                           const h = 220;
                           const chartW = w - padding.left - padding.right;
                           const chartH = h - padding.top - padding.bottom;
@@ -1673,7 +1759,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                             ? `M ${points.map((p) => `${p.x} ${p.y}`).join(' L ')}`
                             : '';
                           return (
-                            <svg className="teacher-activity-line-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" width={w} height={h} aria-label="Active students per day">
+                            <svg className="teacher-activity-line-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" width={w} height={h} aria-label={activityChartByWeek ? 'Active students per week' : 'Active students per day'} onMouseLeave={() => setActivityChartHover(null)}>
                               <defs>
                                 <linearGradient id="teacher-activity-line-fill" x1="0" y1="1" x2="0" y2="0">
                                   <stop offset="0%" stopColor="rgba(34, 197, 94, 0.08)" />
@@ -1688,21 +1774,44 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                                   <path d={pathD} fill="none" className="teacher-activity-line-path" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </>
                               )}
-                              {points.map((p, i) => (
-                                <circle key={p.date} cx={p.x} cy={p.y} r={p.activeCount > 0 ? 3 : 0} className="teacher-activity-line-dot" />
+                              {points.map((p) => (
+                                <g key={p.key}>
+                                  {/* Invisible larger hit area for easier hover */}
+                                  <circle cx={p.x} cy={p.y} r={10} fill="transparent" style={{ cursor: 'pointer' }} onMouseEnter={() => setActivityChartHover(p)} onMouseLeave={() => setActivityChartHover(null)} />
+                                  <circle cx={p.x} cy={p.y} r={p.activeCount > 0 ? 3 : 0} className="teacher-activity-line-dot" style={{ pointerEvents: 'none' }} />
+                                </g>
                               ))}
-                              {points.map((p) => {
-                                const [, m, d] = p.date.split('-');
-                                const shortDate = `${Number(m)}/${Number(d)}`;
-                                return (
-                                  <text key={`label-${p.date}`} x={p.x} y={h - 6} textAnchor="middle" className="teacher-activity-line-xlabel">{shortDate}</text>
-                                );
-                              })}
-                              <text x={padding.left - 8} y={padding.top + chartH / 2} textAnchor="middle" className="teacher-activity-line-ylabel" transform={`rotate(-90, ${padding.left - 8}, ${padding.top + chartH / 2})`}>Active students (that day)</text>
+                              {activityChartHover && (
+                                <g className="teacher-activity-line-tooltip" transform={`translate(${activityChartHover.x}, ${activityChartHover.y - 22})`}>
+                                  <rect x={-52} y={-12} width={104} height={24} rx={6} fill="rgba(0,0,0,0.85)" stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+                                  <text y={2} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={500}>
+                                    {activityChartHover.activeCount} active students
+                                  </text>
+                                </g>
+                              )}
+                              {points.map((p) => (
+                                <text key={`label-${p.key}`} x={p.x} y={h - 6} textAnchor="middle" className="teacher-activity-line-xlabel">{p.label}</text>
+                              ))}
+                              <text x={padding.left - 8} y={padding.top + chartH / 2} textAnchor="middle" className="teacher-activity-line-ylabel" transform={`rotate(-90, ${padding.left - 8}, ${padding.top + chartH / 2})`}>{activityChartByWeek ? 'Active students (that week)' : 'Active students (that day)'}</text>
                             </svg>
                           );
                         })()}
+                          </div>
                         </div>
+                        {activityChartPeak && (
+                          <div className="teacher-activity-line-peak-panel">
+                            <span className="teacher-activity-line-peak-label">Highest peak</span>
+                            <span className="teacher-activity-line-peak-value">{activityChartPeakDateLabel}</span>
+                            <span className="teacher-activity-line-peak-count">{activityChartPeak.activeCount} active students</span>
+                          </div>
+                        )}
+                        {activityChartLowest && (
+                          <div className="teacher-activity-line-peak-panel teacher-activity-line-lowest-panel">
+                            <span className="teacher-activity-line-peak-label">Lowest peak</span>
+                            <span className="teacher-activity-line-peak-value">{activityChartLowestDateLabel}</span>
+                            <span className="teacher-activity-line-peak-count">{activityChartLowest.activeCount} active students</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1739,11 +1848,11 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                                 {s.profile_photo ? (
                                   <img src={s.profile_photo} alt="" />
                                 ) : (
-                                  <span>{(s.full_name || s.username || '?').toString().charAt(0).toUpperCase()}</span>
+                                  <span>{(s.full_name || s.first_name || s.lrn || '?').toString().charAt(0).toUpperCase()}</span>
                                 )}
                               </div>
                               <div className="teacher-insight-attention-copy">
-                                <span className="teacher-insight-top-name">{s.full_name || s.username || 'Student'}</span>
+                                <span className="teacher-insight-top-name">{s.full_name || s.first_name || s.lrn || 'Student'}</span>
                                 <span className="teacher-insight-attention-reason">{s.attentionReason}</span>
                               </div>
                             </div>
@@ -1785,10 +1894,10 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                                 {s.profile_photo ? (
                                   <img src={s.profile_photo} alt="" />
                                 ) : (
-                                  <span>{(s.full_name || s.username || '?').toString().charAt(0).toUpperCase()}</span>
+                                  <span>{(s.full_name || s.first_name || s.lrn || '?').toString().charAt(0).toUpperCase()}</span>
                                 )}
                               </div>
-                              <span className="teacher-insight-top-name">{s.full_name || s.username || 'Student'}</span>
+                              <span className="teacher-insight-top-name">{s.full_name || s.first_name || s.lrn || 'Student'}</span>
                               <span className="teacher-insight-top-pct">{s.overallProgress ?? 0}%</span>
                             </div>
                           ))}
@@ -1809,7 +1918,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
               <div className="teacher-list-controls">
                 <input
                   type="search"
-                  placeholder="Search by name, username, or email..."
+                  placeholder="Search by name, LRN, or email..."
                   value={overviewSearch}
                   onChange={(e) => setOverviewSearch(e.target.value)}
                   className="teacher-search-input"
@@ -1948,7 +2057,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                         <tbody>
                           {attentionRows.map((s) => (
                             <tr key={s.id}>
-                              <td className="teacher-attention-name">{s.full_name || s.username}</td>
+                              <td className="teacher-attention-name">{s.full_name || s.first_name || s.lrn}</td>
                               <td>{s.grade || '—'}</td>
                               <td>{s.strand || '—'}</td>
                               <td>{s.section || '—'}</td>
@@ -2038,7 +2147,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                         <tbody>
                           {completionModalRows.map((s) => (
                             <tr key={s.id}>
-                              <td className="teacher-attention-name">{s.full_name || s.username}</td>
+                              <td className="teacher-attention-name">{s.full_name || s.first_name || s.lrn}</td>
                               <td><span className="teacher-completion-cell-badge">{s.grade || '—'}</span></td>
                               <td>{s.strand || '—'}</td>
                               <td>{s.section || '—'}</td>
@@ -2086,7 +2195,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 <div className="teacher-attention-modal-body">
                   <input
                     type="search"
-                    placeholder="Search by name, username, or email..."
+                    placeholder="Search by name, LRN, or email..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="teacher-search-input"
@@ -2162,10 +2271,11 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                               <tbody>
                                 {grp.students.map((s) => {
                                   const photo = s.profile_photo || detailByStudentId[s.id]?.profile_photo;
-                                  const displayName = formatStudentDisplayName(s) || s.username || '—';
+                                  const displayName = formatStudentDisplayName(s) || s.lrn || '—';
                                   const initial = displayName.charAt(0).toUpperCase();
+                                  const isDeleting = deletingStudentId === s.id;
                                   return (
-                                  <tr key={s.id}>
+                                  <tr key={s.id} className={isDeleting ? 'teacher-student-row-deleting' : ''}>
                                     <td className="teacher-attention-name">
                                       <span className="teacher-student-row-avatar-wrap">
                                         {photo ? (
@@ -2186,26 +2296,35 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                                     <td>{detailByStudentId[s.id]?.overallProgress != null ? `${detailByStudentId[s.id].overallProgress}%` : '—'}</td>
                                     <td>{getLastActiveText(detailByStudentId[s.id]?.lastActivity)}</td>
                                     <td>
-                                      <button
-                                        type="button"
-                                        className="teacher-row-action"
-                                        onClick={() => { setStudentsModalOpen(false); handleSelectStudent(s); }}
-                                      >
-                                        View progress
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="teacher-delete-switch"
-                                        onClick={() => setDeleteConfirmStudent({ student: s, displayName })}
-                                        disabled={deletingStudentId === s.id}
-                                        title={`Delete ${displayName}`}
-                                        aria-label={`Delete ${displayName}`}
-                                      >
-                                        <span className="teacher-delete-switch-track">
-                                          <span className="teacher-delete-switch-thumb" />
-                                          <span className="teacher-delete-switch-label">Delete</span>
+                                      {isDeleting ? (
+                                        <span className="teacher-student-deleting-label" aria-live="polite">
+                                          <span className="teacher-student-deleting-spinner" aria-hidden />
+                                          Deleting…
                                         </span>
-                                      </button>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            className="teacher-row-action"
+                                            onClick={() => { setStudentsModalOpen(false); handleSelectStudent(s); }}
+                                          >
+                                            View progress
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="teacher-delete-switch"
+                                            onClick={() => setDeleteConfirmStudent({ student: s, displayName })}
+                                            disabled={deletingStudentId === s.id}
+                                            title={`Delete ${displayName}`}
+                                            aria-label={`Delete ${displayName}`}
+                                          >
+                                            <span className="teacher-delete-switch-track">
+                                              <span className="teacher-delete-switch-thumb" />
+                                              <span className="teacher-delete-switch-label">Delete</span>
+                                            </span>
+                                          </button>
+                                        </>
+                                      )}
                                     </td>
                                   </tr>
                                   );
@@ -2288,7 +2407,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
               <div className="teacher-list-controls">
                 <input
                   type="search"
-                  placeholder="Search by name, username, or email..."
+                  placeholder="Search by name, LRN, or email..."
                   value={overviewSearch}
                   onChange={(e) => setOverviewSearch(e.target.value)}
                   className="teacher-search-input"
@@ -2392,7 +2511,7 @@ function TeacherDashboard({ user, onLogout, baseUrl: baseUrlProp, darkMode = fal
                 {selectedStudent ? (
                   <div className="teacher-selected-student-card">
                     <span className="teacher-selected-student-title">Selected</span>
-                    <span className="teacher-selected-student-name">{formatStudentDisplayName(selectedStudent) || selectedStudent.username}</span>
+                    <span className="teacher-selected-student-name">{formatStudentDisplayName(selectedStudent) || selectedStudent.lrn}</span>
                     <span className="teacher-selected-student-meta">
                       {selectedStudent.email} · Grade {selectedStudent.grade || '—'} {selectedStudent.strand ? `· ${selectedStudent.strand}` : ''} · Section {selectedStudent.section || '—'}
                     </span>

@@ -575,6 +575,13 @@
   color: #1a1a1a;
   cursor: pointer;
 }
+/* When select shows placeholder (no choice yet), match input placeholder color */
+.input-group select:invalid {
+  color: #9ca3af;
+}
+.input-group select:valid {
+  color: #1a1a1a;
+}
 
 .input-group-disabled {
   background: #f3f4f6;

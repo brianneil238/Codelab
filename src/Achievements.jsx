@@ -146,7 +146,7 @@ function Achievements({ baseUrl, user, darkMode = false }) {
     );
   }
 
-  const displayName = user?.username || user?.fullName || user?.firstName || 'Coder';
+  const displayName = user?.fullName || user?.firstName || 'Coder';
   const avatarLetter = (displayName || 'U').toString().charAt(0).toUpperCase();
   const avatarSrc = user?.profilePhoto || '/profile-avatar.png';
 

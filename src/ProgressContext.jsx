@@ -42,6 +42,8 @@ export const ProgressProvider = ({ children, user, onAchievementUnlocked }) => {
       loadStreakFromBackend(user.id);
       loadStatsFromBackend(user.id);
       syncLocalStorageToBackend(user.id);
+      // Tick streak so "opening the app" counts as activity for today (fixes streak staying at 1 when visiting on consecutive days)
+      tickStreak(user.id);
     } else {
       console.log('No user ID available, skipping progress load');
     }
@@ -64,10 +66,16 @@ export const ProgressProvider = ({ children, user, onAchievementUnlocked }) => {
     }
   };
 
-  // Explicitly tick/update the user's streak
+  // Explicitly tick/update the user's streak (sends local date so streak uses the user's calendar day)
   const tickStreak = async (userId) => {
     try {
-      const response = await fetch(`${baseUrl}/streak/${userId}/tick`, { method: 'POST' });
+      const now = new Date();
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      const response = await fetch(`${baseUrl}/streak/${userId}/tick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: localDate }),
+      });
       if (response.ok) {
         const data = await response.json();
         if (data?.streak) setStreak(data.streak);

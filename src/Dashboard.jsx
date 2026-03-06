@@ -20,7 +20,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileForm, setProfileForm] = useState({
-    lastName: '', firstName: '', middleName: '', username: '', birthday: '', age: '', sex: '', address: '', addressProvince: '', addressCity: '', addressBarangay: '', grade: '', strand: '', section: '', email: '', contact: '',
+    lastName: '', firstName: '', middleName: '', birthday: '', age: '', sex: '', address: '', addressProvince: '', addressCity: '', addressBarangay: '', grade: '', strand: '', section: '', email: '', contact: '',
   });
   const [addressStructure, setAddressStructure] = useState(null);
   const fileInputRef = useRef(null);
@@ -99,7 +99,6 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
       lastName,
       firstName,
       middleName,
-      username: user?.username ?? '',
       birthday: user?.birthday ?? '',
       age: user?.age !== undefined && user?.age !== null ? String(user.age) : '',
       sex: user?.sex ?? '',
@@ -173,7 +172,6 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
         lastName: String(profileForm.lastName ?? '').trim(),
         firstName: String(profileForm.firstName ?? '').trim(),
         middleName: String(profileForm.middleName ?? '').trim(),
-        username: (profileForm.username || '').trim(),
         birthday: profileForm.birthday || null,
         age: profileForm.age === '' ? null : Number(profileForm.age),
         sex: profileForm.sex,
@@ -212,7 +210,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
     }
   };
 
-  const initial = (user.fullName || user.firstName || user.username || 'U').toString().charAt(0);
+  const initial = (user.fullName || user.firstName || 'U').toString().charAt(0);
 
   return (
     <div className={`dashboard${darkMode ? ' dashboard-dark' : ''}`}>
@@ -237,7 +235,7 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                 ) : (
                   <div className="user-avatar user-avatar-placeholder" aria-hidden>{initial.toUpperCase()}</div>
                 )}
-                <span className="user-name">{user.username || user.fullName}</span>
+                <span className="user-name">{user.firstName || user.fullName}</span>
                 <span className="profile-dropdown-chevron" aria-hidden>▼</span>
               </button>
               {showProfileDropdown && (
@@ -340,8 +338,8 @@ function Dashboard({ user, onLogout, onCourseSelect, baseUrl, onProfileUpdate, d
                     <input type="text" name="middleName" value={profileForm.middleName} onChange={handleProfileFormChange} className="profile-form-input" />
                   </div>
                   <div className="profile-form-field">
-                    <label className="profile-form-label">Username</label>
-                    <input type="text" name="username" value={profileForm.username} onChange={handleProfileFormChange} className="profile-form-input" />
+                    <label className="profile-form-label">LRN</label>
+                    <input type="text" value={user?.lrn ?? ''} readOnly className="profile-form-input" aria-label="LRN (12 digits)" />
                   </div>
                   <div className="profile-form-field">
                     <label className="profile-form-label">Email</label>

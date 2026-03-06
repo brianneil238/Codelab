@@ -37,7 +37,8 @@ async function connectDb() {
   announcements = db.collection('announcements');
   teacherNotes = db.collection('teacher_notes');
   await users.createIndex({ email: 1 }, { unique: true });
-  await users.createIndex({ username: 1 }, { unique: true });
+  // Students: LRN is unique (teachers don't have one)
+  await users.createIndex({ lrn: 1 }, { unique: true, sparse: true });
   await userProgress.createIndex(
     { user_id: 1, course: 1, lecture_id: 1, type: 1 },
     { unique: true }
@@ -61,14 +62,14 @@ connectDb().catch((err) => {
 // Signup route
 app.post('/signup', async (req, res) => {
   try {
-    const { fullName, lastName, firstName, middleName, username, contact, birthday, age, sex, grade, strand, section, address, email, password, role, employeeNumber } = req.body;
+    const { fullName, lastName, firstName, middleName, lrn, contact, birthday, age, sex, grade, strand, section, address, email, password, role, employeeNumber } = req.body;
 
     const normalizedRole = (role || 'student').toLowerCase() === 'teacher' ? 'teacher' : 'student';
 
-    // Teachers only need: fullName, username, email, password, employee number (7 digits). Rest optional.
+    // Teachers only need: fullName, email, password, employee number (7 digits). Rest optional.
     if (normalizedRole === 'teacher') {
-      if (!fullName || !username || !email || !password) {
-        return res.status(400).json({ message: 'Please enter full name, username, email, and password' });
+      if (!fullName || !email || !password) {
+        return res.status(400).json({ message: 'Please enter full name, email, and password' });
       }
       const rawEmp = (employeeNumber || '').toString().replace(/\D/g, '');
       if (!rawEmp || rawEmp.length !== 7) {
@@ -82,7 +83,11 @@ app.post('/signup', async (req, res) => {
       if (!ln || !fn) {
         return res.status(400).json({ message: 'Please enter Last Name and First Name' });
       }
-      if (!username || !birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
+      const rawLrn = (lrn || '').toString().replace(/\D/g, '');
+      if (!rawLrn || rawLrn.length !== 12) {
+        return res.status(400).json({ message: 'LRN must be exactly 12 digits.' });
+      }
+      if (!birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
         return res.status(400).json({ message: 'Please enter all required fields' });
       }
       if (!['11', '12'].includes(String(grade).trim())) {
@@ -95,9 +100,14 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ message: 'A user with this email already exists. Please log in instead.' });
     }
 
-    const existingUsername = await users.findOne({ username });
-    if (existingUsername) {
-      return res.status(400).json({ message: 'This username is already taken. Please choose a different username.' });
+    const normalizedLrn = normalizedRole === 'student'
+      ? (lrn ? String(lrn).replace(/\D/g, '').slice(0, 12) : '')
+      : '';
+    if (normalizedRole === 'student') {
+      const existingLrn = await users.findOne({ lrn: normalizedLrn });
+      if (existingLrn) {
+        return res.status(400).json({ message: 'This LRN is already registered. Please log in instead.' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -114,7 +124,7 @@ app.post('/signup', async (req, res) => {
 
     const doc = {
       full_name: resolvedFullName,
-      username,
+      ...(normalizedRole === 'student' ? { lrn: normalizedLrn } : {}),
       last_name: normalizedRole === 'student' ? (lastName || '').toString().trim() : undefined,
       first_name: normalizedRole === 'student' ? (firstName || '').toString().trim() : undefined,
       middle_name: normalizedRole === 'student' ? (middleName || '').toString().trim() : undefined,
@@ -137,7 +147,7 @@ app.post('/signup', async (req, res) => {
 
     res.status(201).json({
       message: 'User registered successfully',
-      user: { id, email, username, role: normalizedRole },
+      user: { id, email, role: normalizedRole, ...(normalizedRole === 'student' ? { lrn: normalizedLrn } : {}) },
     });
   } catch (error) {
     console.error('Signup error:', error);
@@ -166,24 +176,25 @@ app.post('/login', async (req, res) => {
 
     const id = user._id.toString();
     const token = jwt.sign(
-      { id, email: user.email, username: user.username, role: user.role || 'student' },
+      { id, email: user.email, role: user.role || 'student', ...(user.role === 'student' && user.lrn ? { lrn: user.lrn } : {}) },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
     const birthdayVal = user.birthday;
+    const derivedFirstName = user.first_name || (user.full_name ? String(user.full_name).trim().split(/\s+/)[0] : '');
     res.status(200).json({
       token,
       message: 'Logged in successfully',
       user: {
         id,
         email: user.email,
-        username: user.username,
         fullName: user.full_name,
         lastName: user.last_name || '',
-        firstName: user.first_name || '',
+        firstName: derivedFirstName || '',
         middleName: user.middle_name || '',
         role: user.role || 'student',
+        lrn: user.lrn || '',
         profilePhoto: user.profile_photo || null,
         birthday: birthdayVal ? (birthdayVal instanceof Date ? birthdayVal.toISOString().slice(0, 10) : String(birthdayVal).slice(0, 10)) : '',
         age: user.age != null ? user.age : '',
@@ -213,7 +224,6 @@ app.patch('/users/:userId/profile', async (req, res) => {
       lastName,
       firstName,
       middleName,
-      username,
       birthday,
       age,
       sex,
@@ -248,11 +258,6 @@ app.patch('/users/:userId/profile', async (req, res) => {
     } else if (typeof fullName === 'string' && fullName.trim()) {
       update.full_name = fullName.trim();
     }
-    if (typeof username === 'string' && username.trim()) {
-      const existing = await users.findOne({ username: username.trim(), _id: { $ne: id } });
-      if (existing) return res.status(400).json({ message: 'This username is already taken.' });
-      update.username = username.trim();
-    }
     if (typeof email === 'string' && email.trim()) {
       const existing = await users.findOne({ email: email.trim(), _id: { $ne: id } });
       if (existing) return res.status(400).json({ message: 'A user with this email already exists.' });
@@ -284,17 +289,18 @@ app.patch('/users/:userId/profile', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     const birthdayVal = u.birthday;
+    const derivedFirstName = u.first_name || (u.full_name ? String(u.full_name).trim().split(/\s+/)[0] : '');
     res.status(200).json({
       message: 'Profile updated',
       user: {
         id: u._id.toString(),
         email: u.email,
-        username: u.username,
         fullName: u.full_name,
         lastName: u.last_name || '',
-        firstName: u.first_name || '',
+        firstName: derivedFirstName || '',
         middleName: u.middle_name || '',
         role: u.role || 'student',
+        lrn: u.lrn || '',
         profilePhoto: u.profile_photo || null,
         birthday: birthdayVal ? (birthdayVal instanceof Date ? birthdayVal.toISOString().slice(0, 10) : String(birthdayVal).slice(0, 10)) : '',
         age: u.age != null ? u.age : '',
@@ -454,19 +460,20 @@ app.get('/achievements/:userId', async (req, res) => {
   }
 });
 
-// Award an achievement (e.g. when user passes a challenge)
+// Award an achievement (e.g. when user passes a challenge). Only counts as "new" if not already earned (no double XP).
 app.post('/achievements', async (req, res) => {
   try {
     const { userId, key } = req.body;
     if (!userId || !key) {
       return res.status(400).json({ message: 'Missing userId or key' });
     }
-    await userAchievements.updateOne(
+    const result = await userAchievements.updateOne(
       { user_id: userId, key },
       { $setOnInsert: { user_id: userId, key, created_at: new Date() } },
       { upsert: true }
     );
-    res.status(200).json({ message: 'Achievement recorded' });
+    const inserted = (result.upsertedCount || 0) === 1;
+    res.status(200).json({ message: 'Achievement recorded', inserted });
   } catch (error) {
     console.error('Award achievement error:', error);
     res.status(500).json({ error: error.message });
@@ -593,7 +600,7 @@ function perCourseProgressFromItems(items) {
 app.get('/teacher/class-detail', async (req, res) => {
   try {
     const studentRows = await users.find({ role: 'student' }).project({
-      _id: 1, full_name: 1, last_name: 1, first_name: 1, middle_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1, profile_photo: 1,
+      _id: 1, full_name: 1, last_name: 1, first_name: 1, middle_name: 1, lrn: 1, email: 1, grade: 1, strand: 1, section: 1, profile_photo: 1,
     }).sort({ created_at: -1 }).toArray();
     const studentIds = studentRows.map((r) => r._id.toString());
     if (studentIds.length === 0) {
@@ -625,7 +632,7 @@ app.get('/teacher/class-detail', async (req, res) => {
         last_name: r.last_name || '',
         first_name: r.first_name || '',
         middle_name: r.middle_name || '',
-        username: r.username,
+        lrn: r.lrn || '',
         email: r.email,
         grade: r.grade,
         strand: r.strand,
@@ -649,7 +656,7 @@ app.get('/teacher/class-detail', async (req, res) => {
 app.get('/teacher/export-progress', async (req, res) => {
   try {
     const studentRows = await users.find({ role: 'student' }).project({
-      _id: 1, full_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1,
+      _id: 1, full_name: 1, lrn: 1, email: 1, grade: 1, strand: 1, section: 1,
     }).toArray();
     const studentIds = studentRows.map((r) => r._id.toString());
     const allProgress = studentIds.length > 0
@@ -672,7 +679,7 @@ app.get('/teacher/export-progress', async (req, res) => {
       const courses = perCourseProgressFromItems(items);
       return {
         full_name: r.full_name,
-        username: r.username,
+        lrn: r.lrn || '',
         email: r.email,
         grade: r.grade,
         strand: r.strand,
@@ -688,10 +695,10 @@ app.get('/teacher/export-progress', async (req, res) => {
       const s = v == null ? '' : String(v);
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const header = 'Name,Username,Email,Grade,Strand,Section,Overall %,HTML %,C++ %,Python %,Last activity';
+    const header = 'Name,LRN,Email,Grade,Strand,Section,Overall %,HTML %,C++ %,Python %,Last activity';
     const csvLines = [header, ...rows.map((s) => [
-      escape(s.full_name || s.username),
-      escape(s.username),
+      escape(s.full_name),
+      escape(s.lrn),
       escape(s.email),
       escape(s.grade),
       escape(s.strand),
@@ -1076,7 +1083,7 @@ app.get('/students', async (req, res) => {
   try {
     const cursor = users
       .find({ role: 'student' })
-      .project({ full_name: 1, last_name: 1, first_name: 1, middle_name: 1, username: 1, email: 1, grade: 1, strand: 1, section: 1, created_at: 1, profile_photo: 1 })
+      .project({ full_name: 1, last_name: 1, first_name: 1, middle_name: 1, lrn: 1, email: 1, grade: 1, strand: 1, section: 1, created_at: 1, profile_photo: 1 })
       .sort({ created_at: -1 });
     const rows = await cursor.toArray();
     const students = rows.map((r) => ({
@@ -1085,7 +1092,7 @@ app.get('/students', async (req, res) => {
       last_name: r.last_name || '',
       first_name: r.first_name || '',
       middle_name: r.middle_name || '',
-      username: r.username,
+      lrn: r.lrn || '',
       email: r.email,
       grade: r.grade,
       strand: r.strand,
@@ -1124,11 +1131,12 @@ app.get('/streak/:userId', async (req, res) => {
   }
 });
 
-// Streak: tick
+// Streak: tick (optional body: { date: "YYYY-MM-DD" } for user's local date so streak uses their calendar day)
 app.post('/streak/:userId/tick', async (req, res) => {
   try {
     const userId = req.params.userId;
-    await updateUserStreak(userId);
+    const clientDate = req.body?.date && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date).trim()) ? String(req.body.date).trim() : null;
+    await updateUserStreak(userId, clientDate ? { todayOverride: clientDate } : {});
     const streak = await userStreaks.findOne({ user_id: userId });
     let achievementAwarded = null;
     const currentStreak = streak?.current_streak ?? 0;
@@ -1155,9 +1163,11 @@ app.post('/streak/:userId/tick', async (req, res) => {
   }
 });
 
-async function updateUserStreak(userId) {
+async function updateUserStreak(userId, opts = {}) {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = opts.todayOverride && /^\d{4}-\d{2}-\d{2}$/.test(String(opts.todayOverride).trim())
+      ? String(opts.todayOverride).trim()
+      : new Date().toISOString().split('T')[0];
     let streak = await userStreaks.findOne({ user_id: userId });
 
     if (!streak) {
@@ -1244,7 +1254,13 @@ app.delete('/users/:id', async (req, res) => {
     res.status(200).json({ message: 'Student deleted successfully', id: userId });
   } catch (error) {
     console.error('Delete student error:', error);
-    res.status(500).json({ error: error.message });
+    const code = error.code || error.name || '';
+    const msg = String(error.message || '');
+    const isDbAuth = code === 13 || msg.toLowerCase().includes('not authorized') || msg.toLowerCase().includes('unauthorized');
+    const message = isDbAuth
+      ? 'Database permission denied. Ensure your MongoDB user has read-write access (e.g. Atlas: Database User has readWrite role).'
+      : msg || 'Failed to delete student';
+    res.status(500).json({ error: message, details: msg });
   }
 });
 

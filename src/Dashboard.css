@@ -1039,7 +1039,50 @@
 .teacher-analytics-title-second {
   margin-top: 2rem;
 }
-.teacher-analytics-loading,
+.teacher-analytics-loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 1.25rem;
+}
+.teacher-analytics-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: teacher-analytics-spin 0.9s linear infinite;
+}
+.teacher-analytics-loading {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.teacher-analytics-loading-text {
+  opacity: 0.9;
+}
+.teacher-analytics-loading-dots {
+  display: inline-flex;
+  gap: 0.1em;
+}
+.teacher-analytics-loading-dots span {
+  animation: teacher-analytics-bounce 1.4s ease-in-out infinite both;
+}
+.teacher-analytics-loading-dots span:nth-child(1) { animation-delay: 0s; }
+.teacher-analytics-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.teacher-analytics-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes teacher-analytics-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes teacher-analytics-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-4px); }
+}
 .teacher-analytics-empty {
   color: #64748b;
   font-size: 0.9rem;
@@ -1513,10 +1556,74 @@
     scrollbar-color: #94a3b8 #f1f5f9;
   }
 }
+.teacher-activity-line-chart-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  min-height: 0;
+}
+.teacher-activity-line-chart-row .teacher-activity-line-chart-scroller {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .teacher-activity-line-chart-wrap {
   display: inline-block;
   min-width: min-content;
   padding-right: 0.5rem;
+}
+.teacher-activity-line-peak-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 7.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 8px;
+  gap: 0.15rem;
+}
+.teacher-activity-line-peak-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #166534;
+}
+.teacher-activity-line-peak-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #15803d;
+}
+.teacher-activity-line-peak-count {
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+.teacher-activity-line-lowest-panel {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.teacher-activity-line-lowest-panel .teacher-activity-line-peak-label {
+  color: #b45309;
+}
+.teacher-activity-line-lowest-panel .teacher-activity-line-peak-value {
+  color: #d97706;
+}
+.teacher-activity-line-lowest-panel .teacher-activity-line-peak-count {
+  color: #4b5563;
+}
+.dashboard-dark .teacher-activity-line-lowest-panel {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.dashboard-dark .teacher-activity-line-lowest-panel .teacher-activity-line-peak-label {
+  color: #fbbf24;
+}
+.dashboard-dark .teacher-activity-line-lowest-panel .teacher-activity-line-peak-value {
+  color: #fcd34d;
+}
+.dashboard-dark .teacher-activity-line-lowest-panel .teacher-activity-line-peak-count {
+  color: #94a3b8;
 }
 .teacher-activity-line-svg {
   display: block;
@@ -1533,6 +1640,16 @@
 }
 .teacher-activity-line-dot {
   fill: #16a34a;
+}
+.teacher-activity-line-tooltip text {
+  font-family: inherit;
+}
+.dashboard-dark .teacher-activity-line-tooltip rect {
+  fill: rgba(30, 41, 59, 0.95);
+  stroke: rgba(148, 163, 184, 0.3);
+}
+.dashboard-dark .teacher-activity-line-tooltip text {
+  fill: #f1f5f9;
 }
 .teacher-activity-line-xlabel {
   font-size: 0.6rem;
@@ -1772,6 +1889,14 @@
   .teacher-activity-line-subtitle {
     font-size: 0.8rem;
     margin-bottom: 1rem;
+  }
+  .teacher-activity-line-chart-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .teacher-activity-line-peak-panel {
+    min-width: 0;
+    width: 100%;
   }
   .teacher-activity-line-chart-scroller {
     max-width: 100%;
@@ -2348,6 +2473,47 @@
 }
 .teacher-student-row-name {
   font-weight: 500;
+}
+
+/* Deleting student row animation */
+.teacher-student-row-deleting {
+  opacity: 0.85;
+  pointer-events: none;
+  transition: opacity 0.25s ease-out;
+  background: rgba(254, 226, 226, 0.5) !important;
+}
+.dashboard-dark .teacher-student-row-deleting {
+  opacity: 0.85;
+  background: rgba(127, 29, 29, 0.2) !important;
+}
+.teacher-student-row-deleting td {
+  position: relative;
+}
+.teacher-student-deleting-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #dc2626;
+  font-weight: 500;
+}
+.teacher-student-deleting-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fecaca;
+  border-top-color: #dc2626;
+  border-radius: 50%;
+  animation: teacher-student-deleting-spin 0.7s linear infinite;
+}
+@keyframes teacher-student-deleting-spin {
+  to { transform: rotate(360deg); }
+}
+.dashboard-dark .teacher-student-deleting-label {
+  color: #f87171;
+}
+.dashboard-dark .teacher-student-deleting-spinner {
+  border-color: rgba(248, 113, 113, 0.3);
+  border-top-color: #f87171;
 }
 
 /* Profile photo zoom lightbox */
@@ -4373,6 +4539,13 @@
 .dashboard-dark .teacher-analytics-empty {
   color: #94a3b8;
 }
+.dashboard-dark .teacher-analytics-spinner {
+  border-color: #334155;
+  border-top-color: #22c55e;
+}
+.dashboard-dark .teacher-analytics-loading-text {
+  color: #94a3b8;
+}
 .dashboard-dark .teacher-activity-month-block,
 .dashboard-dark .teacher-completion-course-card {
   background: #232923;
@@ -4431,6 +4604,13 @@
 }
 .dashboard-dark .teacher-activity-line-title { color: #f1f5f9; }
 .dashboard-dark .teacher-activity-line-subtitle { color: #94a3b8; }
+.dashboard-dark .teacher-activity-line-peak-panel {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.dashboard-dark .teacher-activity-line-peak-label { color: #86efac; }
+.dashboard-dark .teacher-activity-line-peak-value { color: #4ade80; }
+.dashboard-dark .teacher-activity-line-peak-count { color: #94a3b8; }
 .dashboard-dark .teacher-activity-axis { stroke: #475569; }
 .dashboard-dark .teacher-activity-line-path { stroke: #22c55e; }
 .dashboard-dark .teacher-activity-line-dot { fill: #22c55e; }
