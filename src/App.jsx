@@ -61,9 +61,11 @@ function App() {
     try { localStorage.setItem('codelab-dark', darkMode ? 'true' : 'false'); } catch {}
   }, [darkMode]);
 
-  // Load Philippines address structure for Province → City → Barangay dropdowns
+  // Load Philippines address structure for Province → City → Barangay dropdowns (from public folder)
   useEffect(() => {
-    fetch('/philippine_provinces_cities_municipalities_and_barangays_2019v2.json')
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '';
+    const url = `${base}/philippine_provinces_cities_municipalities_and_barangays_2019v2.json`;
+    fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setAddressStructure(data ? buildAddressStructure(data) : null))
       .catch(() => setAddressStructure(null));
@@ -778,7 +780,7 @@ function App() {
                     <i className="fas fa-map-marker-alt"></i>
                     <select name="addressProvince" value={formData.addressProvince} onChange={handleInputChange} required aria-label="Province">
                       <option value="">Province</option>
-                      {addressStructure?.provinces.map((p) => (
+                      {(addressStructure?.provinces ?? []).map((p) => (
                         <option key={p} value={p}>{p}</option>
                       ))}
                     </select>
@@ -787,7 +789,7 @@ function App() {
                     <i className="fas fa-city"></i>
                     <select name="addressCity" value={formData.addressCity} onChange={handleInputChange} required aria-label="City / Municipality" disabled={!formData.addressProvince}>
                       <option value="">City / Municipality</option>
-                      {addressStructure && formData.addressProvince && addressStructure.getCities(formData.addressProvince).map((c) => (
+                      {(addressStructure && formData.addressProvince ? (addressStructure.getCities(formData.addressProvince) ?? []) : []).map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
@@ -798,7 +800,7 @@ function App() {
                     <i className="fas fa-map-pin"></i>
                     <select name="addressBarangay" value={formData.addressBarangay} onChange={handleInputChange} required aria-label="Barangay" disabled={!formData.addressCity}>
                       <option value="">Barangay</option>
-                      {addressStructure && formData.addressProvince && formData.addressCity && addressStructure.getBarangays(formData.addressProvince, formData.addressCity).map((b) => (
+                      {(addressStructure && formData.addressProvince && formData.addressCity ? (addressStructure.getBarangays(formData.addressProvince, formData.addressCity) ?? []) : []).map((b) => (
                         <option key={b} value={b}>{b}</option>
                       ))}
                     </select>
