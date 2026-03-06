@@ -334,6 +334,30 @@
   .dashboard-header {
     padding: 0 0.5rem;
   }
+  .header-content {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .logo-section {
+    left: 0.5rem;
+  }
+  .logo-text {
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+  }
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.25rem;
+  }
+  .user-section {
+    right: 0.5rem;
+  }
+  .profile-trigger {
+    padding: 0.35rem;
+    min-height: 44px;
+    min-width: 44px;
+  }
 
   .header-content {
     flex-direction: row;
@@ -490,6 +514,16 @@
 @media (max-width: 480px) {
   .dashboard-header {
     padding: 0 0.4rem;
+  }
+  .logo-text {
+    font-size: 1.2rem;
+    max-width: 140px;
+  }
+  .logo-section {
+    left: 0.4rem;
+  }
+  .user-section {
+    right: 0.4rem;
   }
 
   .header-content {
@@ -1662,8 +1696,242 @@
 }
 
 @media (max-width: 500px) {
-  .teacher-insight-cards-row { grid-template-columns: 1fr; }
+  .teacher-insight-cards-row {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
   .teacher-engagement-grid { grid-template-columns: 1fr; }
+  .teacher-insight-middle-row,
+  .teacher-insight-bottom-row {
+    min-width: 0;
+  }
+}
+
+/* Analytics & activity line – mobile responsive */
+@media (max-width: 768px) {
+  .teacher-main-content {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .teacher-analytics,
+  .teacher-analytics-insight {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .teacher-analytics-insight {
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    padding: 0 0.1rem 0 0;
+  }
+  .teacher-analytics-filters {
+    padding: 0.65rem 0.6rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .teacher-analytics-filter-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8rem;
+    min-height: 40px;
+  }
+  .teacher-insight-cards-row {
+    gap: 0.75rem;
+  }
+  .teacher-insight-card {
+    padding: 0.9rem 0.75rem;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .teacher-insight-card-value {
+    font-size: 1.35rem;
+  }
+  .teacher-insight-panel {
+    padding: 1rem 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  .teacher-insight-panel-title {
+    font-size: 0.95rem;
+    margin-bottom: 0.7rem;
+  }
+  .teacher-activity-line-section {
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+    padding: 1rem 0.75rem;
+    border-radius: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .teacher-activity-line-title {
+    font-size: 1.05rem;
+  }
+  .teacher-activity-line-subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  .teacher-activity-line-chart-scroller {
+    max-width: 100%;
+    margin: 0;
+    padding: 0 0 0.5rem 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .teacher-activity-line-chart-wrap {
+    padding-right: 0.25rem;
+  }
+  .teacher-activity-line-svg {
+    height: 200px;
+    max-width: 100%;
+  }
+  .teacher-insight-line-chart {
+    height: 72px;
+  }
+  .teacher-insight-weekly-scroller {
+    margin: 0;
+    padding-bottom: 0.4rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .teacher-insight-weekly-chart-inner {
+    max-width: 100%;
+  }
+  .teacher-insight-table th,
+  .teacher-insight-table td {
+    padding: 0.45rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  .teacher-insight-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+  .teacher-insight-bottom-row .teacher-insight-panel {
+    padding: 1rem 1.1rem;
+  }
+  .teacher-insight-middle-row .teacher-insight-panel {
+    min-height: 14rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 0 0.6rem;
+  }
+  .teacher-analytics-filters {
+    padding: 0.5rem 0.5rem;
+    gap: 0.4rem;
+  }
+  .teacher-analytics-filter-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+  }
+  .teacher-insight-card {
+    padding: 0.75rem 0.85rem;
+  }
+  .teacher-insight-card-value {
+    font-size: 1.25rem;
+  }
+  .teacher-insight-card-label {
+    font-size: 0.8rem;
+  }
+  .teacher-insight-panel,
+  .teacher-insight-bottom-row .teacher-insight-panel {
+    padding: 0.85rem 0.6rem;
+  }
+  .teacher-insight-panel-title {
+    font-size: 0.9rem;
+  }
+  .teacher-activity-line-section {
+    padding: 0.85rem 0.6rem;
+    margin-top: 0.75rem;
+  }
+  .teacher-activity-line-title {
+    font-size: 1rem;
+  }
+  .teacher-activity-line-subtitle {
+    font-size: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .teacher-activity-line-svg {
+    height: 180px;
+  }
+  .teacher-insight-line-chart {
+    height: 64px;
+  }
+  .teacher-engagement-metric {
+    padding: 0.65rem 0.8rem;
+  }
+  .teacher-engagement-metric-value {
+    font-size: 1.15rem;
+  }
+  .teacher-engagement-metric-label {
+    font-size: 0.75rem;
+  }
+  .teacher-insight-table th,
+  .teacher-insight-table td {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.8rem;
+  }
+  .teacher-insight-bottom-row .teacher-insight-panel {
+    padding: 0.85rem 0.9rem;
+  }
+  .teacher-insight-mastery-label {
+    flex: 0 0 3.25rem;
+    font-size: 0.85rem;
+  }
+  .teacher-insight-hbar-label {
+    flex: 0 0 4.5rem;
+    font-size: 0.8rem;
+  }
+  .teacher-insight-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    max-height: 16rem;
+    overflow-x: auto;
+  }
+  .teacher-insight-card {
+    padding: 0.75rem 0.6rem;
+  }
+  .teacher-insight-attention .teacher-insight-top-item,
+  .teacher-insight-top .teacher-insight-top-item {
+    min-height: 44px;
+    padding: 0.6rem 0.75rem;
+  }
+  .teacher-insight-top-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+  .teacher-insight-top-name {
+    font-size: 0.85rem;
+  }
+}
+
+/* Extra small phones – teacher analytics */
+@media (max-width: 360px) {
+  .teacher-analytics-filter-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+  }
+  .teacher-insight-card-value {
+    font-size: 1.15rem;
+  }
+  .teacher-insight-panel {
+    padding: 0.7rem 0.75rem;
+  }
+  .teacher-insight-panel-title {
+    font-size: 0.85rem;
+  }
+  .teacher-activity-line-title {
+    font-size: 0.95rem;
+  }
+  .teacher-activity-line-subtitle {
+    font-size: 0.7rem;
+  }
+  .teacher-activity-line-svg {
+    height: 160px;
+  }
 }
 
 /* Course completion – bar graph (vertical) */
@@ -3245,7 +3513,12 @@
 /* Teacher dashboard – mobile polish */
 @media (max-width: 640px) {
   .dashboard-container {
-    padding: 0 1rem;
+    padding: 0 0.75rem;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  .teacher-main-content {
+    max-width: 100%;
   }
 
   .teacher-class-summary {
@@ -3275,10 +3548,21 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable;
+    padding: 0.4rem 0.5rem;
+    gap: 0.2rem;
   }
   .teacher-tab {
     white-space: nowrap;
     width: auto;
+    min-height: 44px;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .teacher-tab-badge {
+    margin-left: 0.25rem;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.7rem;
   }
 
   .teacher-overview-cards {
