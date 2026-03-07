@@ -87,8 +87,22 @@ app.post('/signup', async (req, res) => {
       if (!rawLrn || rawLrn.length !== 12) {
         return res.status(400).json({ message: 'LRN must be exactly 12 digits.' });
       }
-      if (!birthday || !age || !sex || !grade || !strand || !section || !address || !email || !password || !contact) {
-        return res.status(400).json({ message: 'Please enter all required fields' });
+      const missing = [];
+      if (!birthday || !String(birthday).trim()) missing.push('birthday');
+      if (age === undefined || age === null || age === '') missing.push('age');
+      if (!sex || !String(sex).trim()) missing.push('sex');
+      if (!grade || !String(grade).trim()) missing.push('grade');
+      if (!strand || !String(strand).trim()) missing.push('strand');
+      if (!section || !String(section).trim()) missing.push('section');
+      if (!address || !String(address).trim()) missing.push('address');
+      if (!email || !String(email).trim()) missing.push('email');
+      if (!password) missing.push('password');
+      if (!contact || !String(contact).trim()) missing.push('contact');
+      if (missing.length > 0) {
+        return res.status(400).json({
+          message: 'Please enter all required fields',
+          missingFields: missing,
+        });
       }
       if (!['11', '12'].includes(String(grade).trim())) {
         return res.status(400).json({ message: 'Only Grade 11 and Grade 12 are accepted.' });

@@ -126,6 +126,20 @@ function App() {
     setMessage('');
     setEmptyFieldNames([]);
 
+    if (!isLogin) {
+      const empty = getEmptyRequiredFields(formData, userType);
+      if (empty.length > 0) {
+        const labels = empty.map((f) => {
+          if (f === 'address') return 'Province, City & Barangay';
+          if (f === 'lrn') return 'LRN (12 digits)';
+          return f.charAt(0).toUpperCase() + f.slice(1);
+        });
+        setEmptyFieldNames(empty);
+        setMessage(`Please fill in: ${labels.join(', ')}`);
+        return;
+      }
+    }
+
     // Use the same baseUrl logic as ProgressContext
     const endpoint = `${baseUrl}${isLogin ? '/login' : '/signup'}`;
     const method = 'POST';
@@ -155,7 +169,7 @@ function App() {
                   payload.firstName = (formData.firstName || '').trim();
                   payload.middleName = (formData.middleName || '').trim();
                   const addr = formatAddressString(formData.addressCity, formData.addressProvince, formData.addressBarangay);
-                  if (addr) payload.address = addr;
+                  payload.address = (addr && addr.trim()) || (formData.address && String(formData.address).trim()) || '';
                 }
                 return payload;
               })()
@@ -203,9 +217,17 @@ function App() {
           setShowNotification(true);
           setMessage(''); // Clear the regular message
         } else {
-          setMessage(data.message || data.error || 'An error occurred');
-          const msg = (data.message || data.error || '').toLowerCase();
-          if (!isLogin && (msg.includes('all required fields') || msg.includes('enter full name') || msg.includes('last name and first name') || msg.includes('employee number') || msg.includes('lrn') || msg.includes('12 digits'))) {
+          const msg = data.message || data.error || 'An error occurred';
+          setMessage(msg);
+          const msgLower = msg.toLowerCase();
+          if (!isLogin && data.missingFields && Array.isArray(data.missingFields) && data.missingFields.length > 0) {
+            setEmptyFieldNames(data.missingFields);
+            const labels = data.missingFields.map((f) => {
+              if (f === 'address') return 'Province, City & Barangay';
+              return f.charAt(0).toUpperCase() + f.slice(1);
+            });
+            setMessage(`Please fill in: ${labels.join(', ')}`);
+          } else if (!isLogin && (msgLower.includes('all required fields') || msgLower.includes('enter full name') || msgLower.includes('last name and first name') || msgLower.includes('employee number') || msgLower.includes('lrn') || msgLower.includes('12 digits'))) {
             setEmptyFieldNames(getEmptyRequiredFields(formData, userType));
           }
         }
