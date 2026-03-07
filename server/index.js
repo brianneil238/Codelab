@@ -136,8 +136,12 @@ app.post('/signup', async (req, res) => {
       ? (fullName || '').trim()
       : [firstName, middleName, lastName].map((x) => (x || '').toString().trim()).filter(Boolean).join(' ');
 
+    // Satisfy legacy unique index on username: use LRN for students, email for teachers
+    const usernameForDb = normalizedRole === 'student' ? normalizedLrn : email;
+
     const doc = {
       full_name: resolvedFullName,
+      username: usernameForDb,
       ...(normalizedRole === 'student' ? { lrn: normalizedLrn } : {}),
       last_name: normalizedRole === 'student' ? (lastName || '').toString().trim() : undefined,
       first_name: normalizedRole === 'student' ? (firstName || '').toString().trim() : undefined,
